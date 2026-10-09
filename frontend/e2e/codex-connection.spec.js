@@ -93,6 +93,7 @@ test("admin signs in, cancels, uses device code and signs out from the shared UI
   await signIn(page, "admin");
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
   const panel = page.getByTestId("codex-connection");
+  await page.locator(".connection-details > summary").click();
   await panel
     .getByRole("button", { name: "Enable Codex authoring", exact: true })
     .click();
@@ -104,6 +105,7 @@ test("admin signs in, cancels, uses device code and signs out from the shared UI
   ).toHaveAttribute("href", /auth\.openai\.com\/oauth\/authorize/);
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
+  await page.locator(".connection-details > summary").click();
   await expect(
     panel.getByRole("button", { name: "Cancel sign-in" }),
   ).toBeVisible();
@@ -126,6 +128,7 @@ test("admin signs in, cancels, uses device code and signs out from the shared UI
   expect(effort).toBe("medium");
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
+  await page.locator(".connection-details > summary").click();
   await expect(panel).toContainText("Ready for Codex authoring");
   page.once("dialog", (dialog) => dialog.accept());
   await panel.getByRole("button", { name: "Sign out of Codex" }).click();
@@ -204,6 +207,7 @@ test("live local Codex creates a validated admin draft that can be published", a
   await signIn(page, "admin");
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
   const panel = page.getByTestId("codex-connection");
+  await page.locator(".connection-details > summary").click();
   await expect(panel.getByText("Signed in", { exact: true })).toBeVisible({
     timeout: 30000,
   });
@@ -219,7 +223,7 @@ test("live local Codex creates a validated admin draft that can be published", a
   await expect(
     panel.getByText("Ready for Codex authoring", { exact: true }),
   ).toBeVisible();
-  const title = "Codex UI Warehouse " + Date.now();
+  const title = "Codex UI Warehouse run-" + Date.now().toString(36);
   await page
     .getByLabel("Scenario description")
     .fill(

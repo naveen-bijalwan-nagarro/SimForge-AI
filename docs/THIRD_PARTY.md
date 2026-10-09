@@ -10,7 +10,6 @@ No paid software license, API subscription, GPU toolkit, external dataset or lic
 | Uvicorn | BSD-3-Clause | ASGI server |
 | SimPy | MIT | Discrete-event clock and resource queues |
 | NetworkX | BSD-3-Clause | Dependency, scenario and relationship graphs |
-| Mesa | Apache-2.0 | Agent-based populations |
 | NumPy, SciPy, scikit-learn | BSD-3-Clause | ML failure lab, metrics, image features |
 | Pillow | MIT-CMU (HPND) | Procedural images and GIF clips |
 | LangGraph, LangChain Core | MIT | SOP-factory state machine |
@@ -26,7 +25,6 @@ No paid software license, API subscription, GPU toolkit, external dataset or lic
 |---|---|---|
 | React, React DOM | MIT | Interface |
 | Three.js, @react-three/fiber, @react-three/drei | MIT | Live WebGL 3D world |
-| deck.gl (@deck.gl/react, core, layers) | MIT | Agent population layers |
 | Apache ECharts | Apache-2.0 | Charts |
 | Cytoscape.js, cytoscape-dagre | MIT | Graphs |
 | Lucide React | ISC | Icons |

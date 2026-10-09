@@ -22,12 +22,9 @@ import {
 import { api } from "./client";
 import { CyGraph, EChart, healthColor, lineOption } from "./viz";
 
-// WebGL (Three.js / deck.gl) loads only when a 3D or population view opens.
+// Three.js loads only when the optional 3D view opens.
 const World3D = lazy(() =>
   import("./viz3d").then((m) => ({ default: m.World3D })),
-);
-const PopulationDeck = lazy(() =>
-  import("./viz3d").then((m) => ({ default: m.PopulationDeck })),
 );
 const GL = ({ children }) => (
   <Suspense fallback={<p className="muted padded">Starting WebGL…</p>}>
@@ -623,6 +620,8 @@ export function DiagnosisPanel({ run, setRun, busy, observing }) {
           </strong>{" "}
           — {submitted.cause}
         </p>
+      ) : run.tick >= run.horizon ? (
+        <p className="muted">No diagnosis was recorded before debrief.</p>
       ) : data ? (
         <form
           className="diagnosis-form"
@@ -779,66 +778,7 @@ export function ScorecardPanel({ run }) {
   );
 }
 
-/* ------------------------------------------------------------------ population & connections */
-export function PopulationPanel({ run }) {
-  const { data, error, loading } = useLoad(
-    () => api(`/runs/${run.id}/population`),
-    [run.id, run.tick],
-  );
-  if (loading && !data)
-    return (
-      <Panel title="Agent population">
-        <p className="muted">Running agents…</p>
-      </Panel>
-    );
-  if (error || !data?.kind)
-    return (
-      <Panel title="Agent population">
-        <p className="muted">{error || data?.message}</p>
-      </Panel>
-    );
-  const keys = Object.keys(data.series[0] || {}).filter((k) => k !== "t");
-  return (
-    <Panel
-      title={`Agent population · ${data.description}`}
-      subtitle={`${data.agents} autonomous agents (${data.engine}). The shock starts with the incident and eases after the root cause is repaired.`}
-    >
-      <div className="population">
-        {data.snapshot?.length ? (
-          <GL>
-            <PopulationDeck data={data} />
-          </GL>
-        ) : (
-          <div className="muted padded">This model has no spatial view.</div>
-        )}
-        <EChart
-          height={340}
-          label="Population time series"
-          option={lineOption(
-            data.series.map((s) => s.t),
-            keys.map((k) => ({
-              name: k.replaceAll("_", " "),
-              data: data.series.map((s) => s[k]),
-            })),
-          )}
-        />
-      </div>
-      {data.events?.length > 0 && (
-        <details>
-          <summary>{data.events.length} agent events</summary>
-          <ul className="critic">
-            {data.events.slice(-20).map((e, i) => (
-              <li key={i}>
-                t={e.t}: {e.message}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </Panel>
-  );
-}
-
+/* ------------------------------------------------------------------ connections */
 export function SignalsPanel({ run, onOpenRun, onOpenLab }) {
   const { data, error } = useLoad(
     () => api(`/runs/${run.id}/signals`),

@@ -92,7 +92,7 @@ def guided_pack(answers):
         entity={"item": "seq:ITEM", "value": [10, 1000]},
         objectives=[o for o in (answers.get("objectives") or []) if o] or ["Recover service", "Control cost", "Explain the root cause"],
         learning=dict(role=answers.get("learner_role") or "Incident coordinator", mission=answers.get("mission") or "Investigate, respond and explain the outcome.", success=answers.get("success") or "Restore service within budget."),
-        building_blocks=["SimPy", "NetworkX", "Mesa"],
+        building_blocks=["SimPy", "NetworkX"],
     )
     if answers.get("emits"):
         pack["emits"] = [dict(signal=answers["emits"], node=ids[-1], below=55)]

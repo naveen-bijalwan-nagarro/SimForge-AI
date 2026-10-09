@@ -1,4 +1,4 @@
-"""Crisis worlds, evidence, vision, datasets, populations, connections, factory, MCP and roles."""
+"""Crisis worlds, evidence, vision, datasets, connections, factory, MCP and roles."""
 
 import io
 import json
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import catalog, connections, datasets, evidence, mcp_server, packs, population, rules, settings, store, vision
+from backend import catalog, connections, datasets, evidence, mcp_server, packs, rules, settings, store, vision
 from backend.codex_sandbox import WIZARD, guided_pack
 from backend.engine import simulate
 from backend.factory import checks, compiler, pii
@@ -132,15 +132,7 @@ def test_dataset_export_contains_tables_images_and_coco():
     assert sum(n.endswith(".png") for n in names) == 60
 
 
-# ------------------------------------------------------------------ population & connections
-def test_mesa_populations_are_deterministic_and_react_to_mitigation():
-    for kind in population.MODELS:
-        assert population.run(kind, 3, 300, 30, 5, 0.8) == population.run(kind, 3, 300, 30, 5, 0.8)
-    free = population.run("pandemic", 3, 600, 40, 5, 0.8)["series"][-1]
-    mitigated = population.run("pandemic", 3, 600, 40, 5, 0.8, mitigated_at=8)["series"][-1]
-    assert mitigated["recovered"] + mitigated["infectious"] < free["recovered"] + free["infectious"]
-
-
+# ------------------------------------------------------------------ connections
 def test_scenario_graph_signals_and_handoff():
     worlds = catalog.world_specs()
     graph = connections.scenario_graph(worlds)
@@ -255,7 +247,7 @@ def test_run_investigation_endpoints(client):
     assert evidence_items and all(i["role"] in {"medical", "all"} for i in evidence_items)
     council = client.post(f"/api/runs/{rid}/commander").json()
     assert council["commander"]["workflow"][-1]["status"] == "waiting"
-    assert client.get(f"/api/runs/{rid}/population").json()["kind"] == "pandemic"
+    assert client.get(f"/api/runs/{rid}/population").status_code == 404
     options = client.get(f"/api/runs/{rid}/diagnosis").json()["options"]
     assert client.get(f"/api/runs/{rid}/scorecard").status_code == 400
     run = client.post(f"/api/runs/{rid}/diagnosis", json={"root_node": "infections", "cause": options["causes"][0], "version": run["version"]}).json()

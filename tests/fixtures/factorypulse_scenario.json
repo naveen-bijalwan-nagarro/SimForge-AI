@@ -1,0 +1,26 @@
+{
+  "title": "FactoryPulse - Machine Failure",
+  "summary": "A synthetic plant supervisor exercise connects machine condition, a production slowdown, rising rejects and a shipment cutoff. Compare independent evidence before choosing a response.",
+  "nodes": [
+    {"id": "sensors", "label": "Condition sensors", "role": "engineering", "capacity": 5},
+    {"id": "machine", "label": "M-204 machine condition", "role": "engineering", "capacity": 5},
+    {"id": "schedule", "label": "Shift production schedule", "role": "operations", "capacity": 5},
+    {"id": "production", "label": "Press production queue", "role": "operations", "capacity": 5},
+    {"id": "quality", "label": "Dimensional inspection", "role": "safety", "capacity": 5},
+    {"id": "shipments", "label": "Shipment staging", "role": "operations", "capacity": 5}
+  ],
+  "edges": [
+    {"source": "sensors", "target": "machine"},
+    {"source": "machine", "target": "production"},
+    {"source": "schedule", "target": "production"},
+    {"source": "production", "target": "quality"},
+    {"source": "quality", "target": "shipments"}
+  ],
+  "incident_node": "sensors",
+  "cause": "Incorrect gain and zero coefficients on S-204 flattened displayed vibration while M-204 bearing wear increased. The degraded machine then reduced throughput and raised dimensional rejects before dispatch.",
+  "unit": "units",
+  "environment_style": "workflow",
+  "learner_role": "Plant supervisor",
+  "mission": "Investigate the production slowdown using sensor, machine, schedule, inspection and shipment evidence. Diagnose the first failing system before the debrief and choose a safe response.",
+  "success": "Inspect independent evidence, diagnose the source before reveal, protect suspect output and reduce illustrative late units versus the same-workload no-action baseline within budget."
+}

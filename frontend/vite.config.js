@@ -19,8 +19,12 @@ export default defineConfig({
         // Separate vendor chunks so each visual library is cached and loaded on demand.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          if (/three|@react-three|three-stdlib|troika|camera-controls|maath|meshline/.test(id)) return "vendor-three";
-          if (/@deck\.gl|@luma\.gl|@loaders\.gl|@math\.gl|@probe\.gl/.test(id)) return "vendor-deck";
+          if (
+            /three|@react-three|three-stdlib|troika|camera-controls|maath|meshline/.test(
+              id,
+            )
+          )
+            return "vendor-three";
           if (/echarts|zrender/.test(id)) return "vendor-echarts";
           if (/cytoscape|dagre|graphlib/.test(id)) return "vendor-graph";
           return undefined;
@@ -32,7 +36,12 @@ export default defineConfig({
     port: 5173,
     allowedHosts,
     // scripts/start.ps1 -Dev sets SIMFORGE_API_URL when the API runs on another port.
-    proxy: { "/api": { target: process.env.SIMFORGE_API_URL || "http://127.0.0.1:8000", changeOrigin: true } },
+    proxy: {
+      "/api": {
+        target: process.env.SIMFORGE_API_URL || "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
   },
   preview: { allowedHosts },
 });

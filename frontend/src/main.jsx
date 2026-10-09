@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import "./style.css";
 import { api } from "./client";
+import { LearningCheck } from "./LearningCheck";
+import { LearningJourney } from "./LearningJourney";
 import { CoachingWorkspace, RoleHome, ScenarioStudio } from "./Hackathon";
 import {
   EnvironmentSetup,
@@ -42,7 +44,7 @@ import {
   exerciseTime,
 } from "./Experience";
 
-// Heavy visual pages (Three.js, deck.gl, ECharts, Cytoscape) load on demand.
+// Heavy visual pages (Three.js, ECharts, Cytoscape) load on demand.
 const pick = (loader, name) =>
   lazy(() => loader().then((m) => ({ default: m[name] })));
 const labs = () => import("./Labs");
@@ -56,7 +58,6 @@ const EvidenceLocker = pick(investigate, "EvidenceLocker");
 const CommanderPanel = pick(investigate, "CommanderPanel");
 const DiagnosisPanel = pick(investigate, "DiagnosisPanel");
 const ScorecardPanel = pick(investigate, "ScorecardPanel");
-const PopulationPanel = pick(investigate, "PopulationPanel");
 const SignalsPanel = pick(investigate, "SignalsPanel");
 const RolesMatrix = pick(investigate, "RolesMatrix");
 const Loading = () => <p className="muted padded">Loading visual workspace…</p>;
@@ -651,7 +652,7 @@ function App() {
     setView(next);
     setError("");
     if (next === "mllab") setOpenLab(null);
-    if (next === "overview") loadHome();
+    if (next === "overview" || next === "catalog") loadHome();
     await loadList(next);
   }
   function openTrainingLibrary() {
@@ -1569,6 +1570,65 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
     if (tab === "Debrief" && complete)
       act(async () => setReport(await api(`/runs/${run.id}/report`)));
   }, [tab, complete, run.id]);
+  const decisionDesk = (
+    <section className="panel decision-panel">
+      <div className="panel-heading">
+        <div>
+          <h3>Decision desk</h3>
+          <p>Every intervention has a trade-off.</p>
+        </div>
+        <Settings2 size={19} />
+      </div>
+      {run.actions.map((a) => {
+        const used = run.decisions.some((d) => d.action_id === a.id);
+        return (
+          <div className="action-card" key={a.id}>
+            <div>
+              <strong>{a.label}</strong>
+              <Badge tone={used ? "green" : ""}>
+                {used ? "Committed" : a.effect}
+              </Badge>
+            </div>
+            <p>{a.description}</p>
+            <div className="action-meta">
+              <span>{money(a.cost)} units</span>
+              <span>
+                <Clock size={12} />
+                {a.duration} simulated minutes to take effect
+              </span>
+            </div>
+            <button
+              className="secondary full"
+              disabled={
+                busy ||
+                complete ||
+                observing ||
+                used ||
+                a.cost > m.budget - m.spent
+              }
+              onClick={() => decide(a.id)}
+            >
+              {used ? (
+                <>
+                  <Check size={14} />
+                  Committed
+                </>
+              ) : (
+                <>
+                  Commit action
+                  <ArrowRight size={14} />
+                </>
+              )}
+            </button>
+          </div>
+        );
+      })}
+      <p className="tiny decision-note">
+        Actions are applied at the current simulation time. Committed choices
+        remain in the audit trail.
+      </p>
+    </section>
+  );
   return (
     <>
       <PageTitle
@@ -1603,31 +1663,22 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
           Playback connection: {playbackError}
         </p>
       )}
-      <details className="panel mission-details">
-        <summary>Your mission: {run.briefing?.role}</summary>
-        <p>{run.briefing?.mission}</p>
-        <p>
-          <strong>Success:</strong> {run.briefing?.success}
-        </p>
-      </details>
-      <section className="decision-guide" aria-label="How this exercise works">
-        <strong>
-          {observing
-            ? "Trainer: observe and coach; do not take over decisions"
-            : "Learner: investigate → diagnose → act → measure"}
-        </strong>
-        <p>
-          Trace a work item in Live datasets, inspect the evidence, identify the
-          first failing system and choose a response. Actions state their
-          target, cost and delay; resume playback to observe their consequences.
-          Complete the run to reveal the hidden cause and compare with the
-          identical no-action workload.
-        </p>
-        <small>
-          The clock shows simulated exercise time. All costs and impact are
-          synthetic units, not actual customer savings.
-        </small>
-      </section>
+      <LearningJourney
+        run={run}
+        observing={observing}
+        onView={(view) => setTab(view === "Learning" ? "Debrief" : view)}
+        onStart={() => playback("play")}
+        busy={busy}
+      />
+      <LearningCheck
+        run={run}
+        observing={observing}
+        expanded={tab === "Debrief" || run.tick === 0}
+        onOpen={() => setTab("Debrief")}
+        onSaved={async () =>
+          setRun(await api(`/runs/${run.id}?role=${run.role}`))
+        }
+      />
       <div className="run-bar">
         <div className="clock">
           <Radio size={17} />
@@ -1733,40 +1784,75 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
           icon={Zap}
         />
       </div>
-      <div className="tabs">
-        {[
-          "World map",
-          "Live 3D",
-          "Evidence locker",
-          "Event timeline",
-          "Agent council",
-          "Population",
-          "Diagnosis",
-          "Entity data",
-          "Live datasets",
-          "Debrief",
-        ].map((t) => (
+      <div
+        className="tabs learner-primary-tabs"
+        role="group"
+        aria-label="Learning workspace"
+      >
+        {["World map", "Evidence locker", "Diagnosis", "Debrief"].map((t) => (
           <button
             className={tab === t ? "active" : ""}
             key={t}
             onClick={() => setTab(t)}
           >
-            {t}
+            {
+              {
+                "World map": "Operations",
+                "Evidence locker": "Evidence",
+                Diagnosis: "Diagnose & act",
+                Debrief: "Learning review",
+              }[t]
+            }
           </button>
         ))}
       </div>
+      <details
+        className="advanced-simulation-tabs"
+        open={[
+          "Live datasets",
+          "Live 3D",
+          "Event timeline",
+          "Agent council",
+          "Entity data",
+        ].includes(tab)}
+      >
+        <summary>Data & visual tools</summary>
+        <div
+          className="tabs"
+          role="group"
+          aria-label="Additional simulation views"
+        >
+          {[
+            "Live datasets",
+            "Live 3D",
+            "Event timeline",
+            "Agent council",
+            "Entity data",
+          ].map((t) => (
+            <button
+              key={t}
+              className={tab === t ? "active" : ""}
+              onClick={() => setTab(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </details>
       {tab === "Live datasets" && <RunDatasets run={run} />}
       <Suspense fallback={<Loading />}>
         {tab === "Live 3D" && <Live3DPanel run={run} />}
         {tab === "Evidence locker" && <EvidenceLocker run={run} />}
-        {tab === "Population" && <PopulationPanel run={run} />}
         {tab === "Diagnosis" && (
-          <DiagnosisPanel
-            run={run}
-            setRun={setRun}
-            busy={busy}
-            observing={observing}
-          />
+          <div className="workspace-grid diagnosis-workspace">
+            <DiagnosisPanel
+              run={run}
+              setRun={setRun}
+              busy={busy}
+              observing={observing}
+            />
+            {decisionDesk}
+          </div>
         )}
         {tab === "Agent council" && (
           <CommanderPanel
@@ -1831,63 +1917,7 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
               <Chart history={run.history} />
             </section>
           </div>
-          <section className="panel decision-panel">
-            <div className="panel-heading">
-              <div>
-                <h3>Decision desk</h3>
-                <p>Every intervention has a trade-off.</p>
-              </div>
-              <Settings2 size={19} />
-            </div>
-            {run.actions.map((a) => {
-              const used = run.decisions.some((d) => d.action_id === a.id);
-              return (
-                <div className="action-card" key={a.id}>
-                  <div>
-                    <strong>{a.label}</strong>
-                    <Badge tone={used ? "green" : ""}>
-                      {used ? "Committed" : a.effect}
-                    </Badge>
-                  </div>
-                  <p>{a.description}</p>
-                  <div className="action-meta">
-                    <span>{money(a.cost)} units</span>
-                    <span>
-                      <Clock size={12} />
-                      {a.duration} simulated minutes to take effect
-                    </span>
-                  </div>
-                  <button
-                    className="secondary full"
-                    disabled={
-                      busy ||
-                      complete ||
-                      observing ||
-                      used ||
-                      a.cost > m.budget - m.spent
-                    }
-                    onClick={() => decide(a.id)}
-                  >
-                    {used ? (
-                      <>
-                        <Check size={14} />
-                        Committed
-                      </>
-                    ) : (
-                      <>
-                        Commit action
-                        <ArrowRight size={14} />
-                      </>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-            <p className="tiny decision-note">
-              Actions are applied at the current simulation time. Committed
-              choices remain in the audit trail.
-            </p>
-          </section>
+          {decisionDesk}
         </div>
       )}
       {tab === "Event timeline" && (
@@ -2039,7 +2069,7 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
       {tab === "Entity data" && (
         <div className="panel">
           <div className="panel-heading">
-            <h3>Population ledger</h3>
+            <h3>Work item ledger</h3>
             <Badge>First 200 of {run.entities.length}</Badge>
           </div>
           <Table rows={run.entities.slice(0, 200)} />

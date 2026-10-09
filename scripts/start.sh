@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PORT="${PORT:-8000}"; UI_PORT="${UI_PORT:-5173}"
-if ! .venv/bin/python -c 'import sys, fastapi, uvicorn, simpy, mesa; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
+if ! .venv/bin/python -c 'import sys, fastapi, uvicorn, simpy; sys.exit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; then
   echo "The Python environment (.venv) is missing, broken or incomplete. Run: bash scripts/setup.sh" >&2
   exit 1
 fi

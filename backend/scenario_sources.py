@@ -23,12 +23,14 @@ MAX_BATCH = 8 * 1024 * 1024
 MAX_TEXT = 24_000
 MAX_CONTEXT = 24_000
 MAX_DOCUMENTS = 8
-SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".csv", ".json"} | IMAGE_SUFFIXES
 
 
 class Document(BaseModel):
     name: str = Field(min_length=1, max_length=180)
     content: str = Field(min_length=1, max_length=2_800_000)
+    description: str = Field(default="", max_length=6000)
 
 
 class Upload(BaseModel):
@@ -37,8 +39,18 @@ class Upload(BaseModel):
 
 def extract(raw, suffix):
     """Runs in an isolated, time-limited subprocess; no macros, links or OCR."""
-    if suffix in {".txt", ".md"}:
+    if suffix in {".txt", ".md", ".csv", ".json"}:
+        if suffix == ".json":
+            json.loads(raw.decode("utf-8-sig"))
         return raw.decode("utf-8-sig"), []
+    if suffix in IMAGE_SUFFIXES:
+        from PIL import Image
+        with Image.open(io.BytesIO(raw)) as picture:
+            expected = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP"}[suffix]
+            if picture.format != expected or picture.width * picture.height > 8_000_000:
+                raise ValueError("Unsupported image format or more than 8 million pixels")
+            picture.verify()
+        return "", ["Image verified locally. Only the administrator's reviewed description is used; pixels and metadata are not stored or sent. No OCR or automatic visual PII detection."]
     if suffix == ".docx":
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             entries = archive.infolist()
@@ -108,7 +120,7 @@ def upload(body, owner):
         suffix = Path(name).suffix.lower()
         try:
             if suffix not in SUFFIXES:
-                raise ValueError("Supported files: PDF, DOCX, TXT and MD (not DOC or macro documents)")
+                raise ValueError("Supported files: PDF, DOCX, TXT, MD, CSV, JSON, PNG, JPG and WebP (images need a description)")
             raw = base64.b64decode(file.content, validate=True)
             total += len(raw)
             if not raw or len(raw) > MAX_FILE:
@@ -116,6 +128,10 @@ def upload(body, owner):
             if total > MAX_BATCH:
                 raise HTTPException(413, "Upload batch exceeds 8 MiB")
             text, warnings = parse(raw, suffix)
+            if suffix in IMAGE_SUFFIXES:
+                if len(file.description.strip()) < 30:
+                    raise ValueError("Add a reviewed image description of at least 30 characters. Image pixels are not interpreted.")
+                text = "Administrator-reviewed image description:\n" + file.description.strip()
             text, redactions = sanitize(text[:MAX_TEXT])
             if not text.strip():
                 raise ValueError("No readable text; scanned/image PDFs require OCR before upload")
@@ -124,6 +140,8 @@ def upload(body, owner):
             if len(text) >= MAX_TEXT:
                 warnings.append("Extracted text was limited to the first 24,000 characters.")
             prepared.append(dict(name=safe_name, size=len(raw), sha256=hashlib.sha256(raw).hexdigest(),
+                                 input_type="image_description" if suffix in IMAGE_SUFFIXES else "document_text",
+                                 text_sha256=hashlib.sha256(text.encode()).hexdigest(),
                                  text=text, warnings=warnings, redactions=redactions, uploaded=time.time()))
         except (ValueError, zipfile.BadZipFile) as exc:
             errors.append(dict(name=safe_name, message=str(exc)))
@@ -137,6 +155,7 @@ def upload(body, owner):
 
 
 def reference_context(prompt, ids, current):
+    prompt = sanitize(prompt)[0]
     if len(ids) != len(set(ids)):
         raise HTTPException(422, "Select each document only once")
     sources = []
@@ -147,6 +166,8 @@ def reference_context(prompt, ids, current):
             raise HTTPException(404, "Reference document not found in your workspace")
         p = row["payload"]
         sources.append(dict(id=rid, name=p["name"], sha256=p["sha256"],
+                            input_type=p.get("input_type", "document_text"),
+                            text_sha256=p.get("text_sha256"), redactions=p.get("redactions", {}),
                             excerpt=p["text"][:budget], truncated=len(p["text"]) > budget))
     if not sources:
         return prompt, []

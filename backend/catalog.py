@@ -688,7 +688,7 @@ FLAGSHIP_EXTRAS = {
         ],
         emits=[dict(signal="fraud_wave", node="fraud", below=75)],
         consumes=["compromised_credentials"],
-        building_blocks=["SimPy", "NetworkX", "Mesa"],
+        building_blocks=["SimPy", "NetworkX"],
         objectives=["Stable prices", "Player trust", "Revenue"],
     ),
     "airline_crisis": dict(
@@ -727,7 +727,7 @@ FLAGSHIP_EXTRAS = {
             dict(signal="road_closures", node="roads", below=55),
         ],
         consumes=["weather_extreme"],
-        building_blocks=["SimPy", "NetworkX", "Mesa"],
+        building_blocks=["SimPy", "NetworkX"],
         objectives=["Life safety", "Shelter capacity", "Supply continuity"],
     ),
 }

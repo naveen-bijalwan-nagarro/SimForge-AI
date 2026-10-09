@@ -607,7 +607,7 @@
   agents: {emergency: Emergency coordinator, operations: Traffic manager, medical: Hospital liaison, safety: Police commander, finance: Commuter communications}
   entity: {vehicle: Vehicle, origin: Location, destination: Location, delay_min: [0, 95]}
   emits: [{signal: hospital_surge, node: hospital, below: 55}, {signal: road_closures, node: congestion, below: 75}]
-  building_blocks: [SUMO, NetworkX, SimPy, Mesa]
+  building_blocks: [SUMO, NetworkX, SimPy]
   objectives: [Emergency access, Network flow, Public information]
 
 - key: drone_mission
@@ -644,7 +644,7 @@
   agents: {operations: Mission commander, engineering: Drone engineer, safety: Flight safety officer, investigator: Payload analyst, executive: Mission owner}
   entity: {drone: Vehicle, sector: [A, B, C, D, E], battery_pct: [10, 100], altitude_m: [30, 120]}
   consumes: [network_outage]
-  building_blocks: [PX4 SITL, Gazebo, ROS 2, Mesa]
+  building_blocks: [PX4 SITL, Gazebo, ROS 2]
   objectives: [Mission coverage, Airspace safety, Asset preservation]
 
 - key: drone_swarm
@@ -677,7 +677,7 @@
   decoys: [Battery degradation, Heavy cloud cover, A detection-model bug]
   agents: {operations: Swarm operator, engineering: Navigation engineer, investigator: Imagery analyst, safety: Ground control, emergency: Rescue coordinator}
   entity: {drone: Vehicle, cell: 'seq:CELL', altitude_m: [20, 120], coverage_pct: [0, 100]}
-  building_blocks: [Crazyswarm2, PX4, ROS 2, Mesa]
+  building_blocks: [Crazyswarm2, PX4, ROS 2]
   objectives: [Find people fast, Avoid false dispatches, Swarm safety]
 
 - key: drone_inspection
@@ -778,7 +778,7 @@
   agents: {medical: Chief medical officer, operations: Logistics lead, investigator: Epidemiologist, emergency: Vaccination lead, legal: Policy counsel, finance: Economic advisor}
   entity: {person: 'seq:PER', age: [0, 95], district: Location, risk: [low, medium, high]}
   emits: [{signal: hospital_surge, node: hospitals, below: 55}]
-  building_blocks: [Covasim, Mesa, SimPy]
+  building_blocks: [Covasim, SimPy]
   objectives: [Minimise severe cases, Protect health system, Economic and social costs]
 
 - key: hospital_twin

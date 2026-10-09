@@ -14,6 +14,10 @@ export async function api(path, body) {
     } catch {
       detail = text;
     }
+    if (response.status === 404 && detail === "API endpoint not found") {
+      detail =
+        "The running backend is out of date. Restart SimForge with scripts/start.ps1, then refresh this page.";
+    }
     throw new Error(
       typeof detail === "string"
         ? detail

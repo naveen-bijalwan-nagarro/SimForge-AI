@@ -30,16 +30,14 @@ test("two roles: admin publishes, assigns and observes; learner receives and run
     .getByRole("button", { name: "Scenario Lab", exact: true })
     .click();
   await admin
-    .getByText("Use a tested template instead (works without Codex)", {
+    .getByText("Review and edit scenario · New training scenario", {
       exact: true,
     })
     .click();
-  await admin
-    .getByRole("button", { name: "Block-building world", exact: true })
-    .click();
   const editor = admin.getByLabel("Scenario definition JSON");
   const spec = JSON.parse(await editor.inputValue());
-  spec.title = "Settlement review " + Date.now();
+  spec.environment_style = "voxel";
+  spec.title = "Settlement review run-" + Date.now().toString(36);
   await editor.fill(JSON.stringify(spec));
   await admin.getByRole("button", { name: "Validate & save draft" }).click();
   const review = admin.locator(".draft-review").filter({ hasText: spec.title });
@@ -100,6 +98,7 @@ test("two roles: admin publishes, assigns and observes; learner receives and run
     learner.getByRole("button", { name: "Start playback", exact: true }),
   ).toBeEnabled();
   const paused = await learner.locator(".clock strong").innerText();
+  await learner.getByText("Data & visual tools", { exact: true }).click();
   await learner
     .getByRole("button", { name: "Live datasets", exact: true })
     .click();
@@ -108,7 +107,9 @@ test("two roles: admin publishes, assigns and observes; learner receives and run
     .selectOption("live_telemetry");
   await expect(learner.locator(".relational-grid")).toContainText("health");
   await expect(learner.locator(".clock strong")).toHaveText(paused);
-  await learner.getByRole("button", { name: "World map", exact: true }).click();
+  await learner
+    .getByRole("button", { name: "Operations", exact: true })
+    .click();
   await learner.screenshot({
     path: path.resolve("../artifacts/learner-live-world.png"),
     fullPage: true,
@@ -191,13 +192,13 @@ test("admin publishes a mock app whose generated records move through live queue
     .getByRole("button", { name: "Scenario Lab", exact: true })
     .click();
   await admin
-    .getByText("Use a tested template instead (works without Codex)", {
+    .getByText("Review and edit scenario · New training scenario", {
       exact: true,
     })
     .click();
   const editor = admin.getByLabel("Scenario definition JSON");
   const spec = JSON.parse(await editor.inputValue());
-  spec.title = "Mock operations app " + Date.now();
+  spec.title = "Mock operations app run-" + Date.now().toString(36);
   spec.environment_style = "service_app";
   await editor.fill(JSON.stringify(spec));
   await admin.getByRole("button", { name: "Validate & save draft" }).click();
@@ -245,6 +246,7 @@ test("admin publishes a mock app whose generated records move through live queue
     path: path.resolve("../artifacts/learner-mock-application.png"),
     fullPage: true,
   });
+  await learner.getByText("Data & visual tools", { exact: true }).click();
   await learner
     .getByRole("button", { name: "Live datasets", exact: true })
     .click();
@@ -257,7 +259,9 @@ test("admin publishes a mock app whose generated records move through live queue
     await learner
       .getByRole("button", { name: "Step one simulated minute" })
       .click();
-  await learner.getByRole("button", { name: "Diagnosis", exact: true }).click();
+  await learner
+    .getByRole("button", { name: "Diagnose & act", exact: true })
+    .click();
   await learner
     .getByLabel("First failing system")
     .selectOption(spec.incident_node);
@@ -268,7 +272,9 @@ test("admin publishes a mock app whose generated records move through live queue
     .check();
   await learner.getByRole("button", { name: "Submit diagnosis" }).click();
   await expect(learner.getByText(/Submitted at minute/)).toBeVisible();
-  await learner.getByRole("button", { name: "World map", exact: true }).click();
+  await learner
+    .getByRole("button", { name: "Operations", exact: true })
+    .click();
   await learner
     .locator(".action-card")
     .filter({ hasText: "Repair the source" })

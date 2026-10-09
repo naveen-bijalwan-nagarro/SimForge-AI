@@ -34,7 +34,6 @@ langgraph-sdk==0.4.5
 langsmith==0.14.1
 mcp==2.2.0
 mcp-types==2.2.0
-Mesa==3.5.1
 narwhals==2.26.0
 networkx==3.7
 numpy==2.5.3

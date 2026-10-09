@@ -11,7 +11,7 @@ test("complete a gaming simulation, inspect agents, replay and export a debrief"
   await page.getByRole("button", { name: "Open workspace" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Practise real decisions. Without real-world risk.",
+      name: "My learning workspace",
     }),
   ).toBeVisible();
   await page.screenshot({
@@ -49,12 +49,13 @@ test("complete a gaming simulation, inspect agents, replay and export a debrief"
       .getByRole("button", { name: "Step one simulated minute" })
       .click();
   await expect(page.locator(".clock strong")).toContainText("5");
+  await page.getByText("Data & visual tools", { exact: true }).click();
   await page
     .getByRole("button", { name: "Agent council", exact: true })
     .click();
   await page.getByRole("button", { name: "Convene council" }).click();
   await expect(page.locator(".agent")).toHaveCount(3);
-  await page.getByRole("button", { name: "World map", exact: true }).click();
+  await page.getByRole("button", { name: "Operations", exact: true }).click();
   await page
     .locator(".action-card")
     .filter({ hasText: "Patch reward idempotency" })
@@ -75,6 +76,7 @@ test("complete a gaming simulation, inspect agents, replay and export a debrief"
     path: path.resolve("../artifacts/studio-world.png"),
     fullPage: true,
   });
+  await page.getByText("Data & visual tools", { exact: true }).click();
   await page
     .getByRole("button", { name: "Event timeline", exact: true })
     .click();

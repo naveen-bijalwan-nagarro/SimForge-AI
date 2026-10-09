@@ -37,7 +37,7 @@
   entity: {account: Account, device: [DEV-01, DEV-02, DEV-03, DEV-04, DEV-05, DEV-06], item: 'seq:ITEM', gold: [50, 9000]}
   emits: [{signal: fraud_wave, node: mules, below: 55}]
   consumes: [compromised_credentials]
-  building_blocks: [NetworkX, Mesa, PyOD]
+  building_blocks: [NetworkX, PyOD]
   objectives: [Stop laundering, Avoid blocking honest players, Keep chargebacks under threshold]
 
 - key: liveops_war_room
@@ -113,7 +113,7 @@
   entity: {player: Customer, region: [NA, EU, APAC, LATAM], platform: [PC, Console, Mobile], spend: [0, 120]}
   emits: [{signal: player_churn, node: revenue, below: 60}]
   consumes: [cloud_outage, network_outage]
-  building_blocks: [SimPy, Mesa, NetworkX]
+  building_blocks: [SimPy, NetworkX]
   objectives: [Keep queues short, Protect launch revenue, Stop cheating fast]
 
 - key: esports
@@ -188,7 +188,7 @@
   entity: {vehicle: Vehicle, location: Location, responder: Employee, priority: [routine, urgent, critical]}
   emits: [{signal: hospital_surge, node: hospital, below: 85}, {signal: road_closures, node: freight, below: 55}]
   consumes: [blackout]
-  building_blocks: [SUMO, CARLA, Mesa, NetworkX]
+  building_blocks: [SUMO, CARLA, NetworkX]
   objectives: [Save lives first, Keep the city moving, Protect supply]
 
 - key: autonomous_fleet
@@ -227,7 +227,7 @@
   entity: {vehicle: Vehicle, order: Order, location: Location, battery_pct: [15, 100]}
   emits: [{signal: delayed_shipments, node: delivery, below: 55}]
   consumes: [road_closures, blackout]
-  building_blocks: [Mesa, SimPy, PX4, NetworkX]
+  building_blocks: [SimPy, PX4, NetworkX]
   objectives: [On-time delivery, Flight safety, Energy cost]
 
 - key: cyber_defense
@@ -340,7 +340,7 @@
   entity: {patient: 'seq:PT', acuity: [ESI-1, ESI-2, ESI-3, ESI-4, ESI-5], clinician: Employee, age: [1, 95]}
   emits: [{signal: icu_pressure, node: icu, below: 55}]
   consumes: [hospital_surge, blackout]
-  building_blocks: [Synthea, SimPy, Mesa]
+  building_blocks: [Synthea, SimPy]
   objectives: [Minimise preventable harm, Door-to-doctor time, Staff wellbeing]
 
 - key: smart_grid
@@ -415,7 +415,7 @@
   agents: {investigator: News & surveillance analyst, operations: Market operations, finance: Liquidity & clearing risk, engineering: Exchange engineer, legal: Compliance officer, executive: Market regulator}
   entity: {trader: 'seq:TRD', asset: [AAA, BBB, CCC, DDD, EEE], side: [buy, sell], notional_k: [5, 5000]}
   emits: [{signal: market_shock, node: stability, below: 55}]
-  building_blocks: [ABIDES, Mesa]
+  building_blocks: [ABIDES]
   objectives: [Orderly markets, Financial stability, Fair access]
 
 - key: acquisition_game
@@ -527,7 +527,7 @@
   agents: {emergency: Incident commander, engineering: Infrastructure lead, medical: Health cluster lead, operations: Shelter & logistics lead, investigator: Information management, finance: Resource & fuel manager, executive: Civil protection authority}
   entity: {mission: 'seq:MSN', district: Location, team: Employee, people: [5, 800]}
   emits: [{signal: hospital_surge, node: hospitals, below: 55}, {signal: road_closures, node: roads, below: 55}]
-  building_blocks: [Mesa, NetworkX, OpenDroneMap]
+  building_blocks: [NetworkX, OpenDroneMap]
   objectives: [Save lives, Equitable aid, Resource efficiency]
 
 - key: airport_twin
@@ -564,7 +564,7 @@
   agents: {operations: Airport duty manager, safety: Security manager, legal: Border liaison, engineering: BHS engineer, investigator: Passenger experience, executive: Airport operations centre}
   entity: {passenger: 'seq:PAX', flight: [SF101, SF205, SF318, SF422, SF587, SF630], bag: 'seq:BAG', connection_min: [25, 240]}
   consumes: [blackout, network_outage]
-  building_blocks: [SimPy, Mesa, NetworkX]
+  building_blocks: [SimPy, NetworkX]
   objectives: [On-time departures, Passenger experience, Security compliance]
 
 - key: game_of_games
@@ -602,5 +602,5 @@
   entity: {order: Order, customer: Customer, supplier: Supplier, value: [50, 6000]}
   emits: [{signal: stockouts, node: shipments, below: 55}]
   consumes: [compromised_credentials, blackout, supplier_failure]
-  building_blocks: [SimPy, NetworkX, LangGraph, Mesa]
+  building_blocks: [SimPy, NetworkX, LangGraph]
   objectives: [Restore operations, Protect cash, Customer trust]

@@ -13,6 +13,11 @@ import { api } from "./client";
 import { CodexConnection } from "./CodexConnection";
 import { OpenAIConnection } from "./OpenAIConnection";
 import { ScenarioDocuments, VoiceDictation } from "./ScenarioInputs";
+import {
+  AuthoringPolicy,
+  SecurityLog,
+  genericScenario,
+} from "./AuthoringSecurity";
 
 export const exerciseTime = (minute) => {
   const seconds = Math.round((9 * 60 + Number(minute || 0)) * 60);
@@ -28,11 +33,11 @@ export const exerciseTime = (minute) => {
 const roleText = {
   admin: [
     "Admin / Trainer",
-    "Create scenarios, inspect their checks and publish them for learners. You also assign exercises and observe results. A separate trainer account is not required; learners cannot create or publish scenarios.",
+    "Create, review and publish scenarios. Assign practice and review learner evidence.",
   ],
   learner: [
     "Learner",
-    "Open assignments or the Scenario library, inspect linked mock data, diagnose the incident and make your own decisions. Compare outcomes and explain your reasoning; you cannot author, approve or publish scenarios.",
+    "Check knowledge, practise decisions and review your learning.",
   ],
 };
 
@@ -44,10 +49,6 @@ export function RoleGuide({ role }) {
         <strong>{roleText[role][0]} workspace</strong>
         <p>{roleText[role][1]}</p>
       </div>
-      <small>
-        For simultaneous roles, use separate browser profiles or an incognito
-        window. Tabs in the same profile share sign-in.
-      </small>
     </section>
   );
 }
@@ -864,127 +865,61 @@ export function RunDatasets({ run }) {
   );
 }
 
-export const authorTemplates = {
-  "Supplier disruption": {
-    title: "Supplier Disruption Command",
-    summary:
-      "A dispatch-confirmation fault blocks inbound supply, reduces stock and delays customer deliveries. Find the source and restore the flow within budget.",
-    unit: "orders",
-    environment_style: "service_app",
-    learner_role: "Supply planner",
-    mission:
-      "Trace an affected order from supplier dispatch through receiving, inventory, production and customer delivery. Diagnose the first failing system and justify a response with evidence.",
-    success:
-      "Recover processing, reduce late deliveries against the no-action baseline and stay within the synthetic response budget.",
-    nodes: [
-      ["dispatch", "Supplier dispatch", "investigator"],
-      ["receiving", "Inbound receiving", "operations"],
-      ["inventory", "Inventory allocation", "operations"],
-      ["production", "Production planning", "operations"],
-      ["delivery", "Customer delivery", "finance"],
-    ].map(([id, label, role]) => ({ id, label, role, capacity: 5 })),
-    edges: [
-      ["dispatch", "receiving"],
-      ["receiving", "inventory"],
-      ["inventory", "production"],
-      ["production", "delivery"],
-    ].map(([source, target]) => ({ source, target })),
-    incident_node: "dispatch",
-    cause:
-      "A dispatch-confirmation rule holds supplier orders in an inactive allocation queue.",
-  },
-  "Service application": {
-    title: "Customer Service Application Outage",
-    summary:
-      "A broken case-routing rule overloads specialist teams while priority customer cases wait. Recover service and protect urgent cases.",
-    unit: "cases",
-    environment_style: "service_app",
-    learner_role: "Service desk controller",
-    mission:
-      "Find the source of delayed cases, protect critical customers and restore routing using the mock service application.",
-    success:
-      "Use case and workflow records to explain the incident, recover service and stay within budget.",
-    nodes: [
-      ["intake", "Case intake", "investigator"],
-      ["triage", "Priority triage", "operations"],
-      ["specialists", "Specialist queues", "operations"],
-      ["billing", "Billing review", "finance"],
-      ["resolution", "Case resolution", "operations"],
-      ["customers", "Customer follow-up", "finance"],
-    ].map(([id, label, role]) => ({ id, label, role, capacity: 5 })),
-    edges: [
-      ["intake", "triage"],
-      ["triage", "specialists"],
-      ["triage", "billing"],
-      ["specialists", "resolution"],
-      ["billing", "resolution"],
-      ["resolution", "customers"],
-    ].map(([source, target]) => ({ source, target })),
-    incident_node: "triage",
-    cause:
-      "A routing-rule release sends priority cases to an unstaffed specialist queue.",
-  },
-  "Block-building world": {
-    title: "Voxel Settlement Resource Crisis",
-    summary:
-      "A mining allocation fault starves workshops, storage and building crews. Keep the settlement supplied while investigating the broken resource chain.",
-    unit: "deliveries",
-    environment_style: "voxel",
-    learner_role: "Settlement resource coordinator",
-    mission:
-      "Trace resource deliveries through the settlement, identify the bottleneck and restore construction without exhausting emergency supplies.",
-    success:
-      "Restore settlement processing, protect construction deliveries and explain the source using linked records.",
-    nodes: [
-      ["mines", "Resource mines", "investigator"],
-      ["storage", "Storage depot", "operations"],
-      ["workshops", "Crafting workshops", "operations"],
-      ["transport", "Transport carts", "operations"],
-      ["construction", "Building crews", "operations"],
-      ["citizens", "Settlement services", "finance"],
-    ].map(([id, label, role]) => ({ id, label, role, capacity: 5 })),
-    edges: [
-      ["mines", "storage"],
-      ["storage", "workshops"],
-      ["storage", "transport"],
-      ["workshops", "construction"],
-      ["transport", "construction"],
-      ["construction", "citizens"],
-    ].map(([source, target]) => ({ source, target })),
-    incident_node: "mines",
-    cause:
-      "A duplicated resource allocation reserves all incoming ore for an inactive construction project.",
-  },
-};
-
 export function AdminStudio({
   onPublished,
   Graph,
   compact = false,
   showReview = true,
   onDraftReady,
+  editingDraft,
 }) {
-  const [text, setText] = useState(
-      JSON.stringify(authorTemplates["Supplier disruption"], null, 2),
-    ),
+  const [editingId, setEditingId] = useState(null);
+  const [documentRevision, setDocumentRevision] = useState(0);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [privacyPreview, setPrivacyPreview] = useState(null);
+  const [text, setText] = useState(JSON.stringify(genericScenario, null, 2)),
     [drafts, setDrafts] = useState([]),
     [jobs, setJobs] = useState([]),
     [status, setStatus] = useState(null),
     [engine, setEngine] = useState("codex"),
     [apiStatus, setApiStatus] = useState(null),
     [documentIds, setDocumentIds] = useState([]),
-    [templateOpen, setTemplateOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [prompt, setPrompt] = useState(
-      "Create a supplier disruption exercise for a supply planner. Connect supplier dispatch, inbound receiving, inventory allocation, production and customer delivery. A dispatch-confirmation fault should cause queues and late orders. Include a clear mission, evidence-led diagnosis and safe repair, investigation and alternate-route decisions. Use synthetic data only.",
-    ),
+    [prompt, setPrompt] = useState(""),
     [job, setJob] = useState(null);
+  useEffect(() => {
+    if (!editingDraft) return;
+    setText(JSON.stringify(editingDraft.definition, null, 2));
+    setEditingId(editingDraft.id);
+    setEditorOpen(true);
+    setEngine("manual");
+    document
+      .getElementById("scenario-authoring")
+      ?.scrollIntoView({ behavior: "smooth" });
+  }, [editingDraft]);
   async function refresh() {
     const rows = await api("/scenario-drafts");
     setDrafts(rows);
     return rows;
   }
+  useEffect(() => {
+    if (job?.status !== "ready" || !job.draft_id) return;
+    let active = true;
+    refresh()
+      .then((rows) => {
+        const draft = rows.find((d) => d.id === job.draft_id);
+        if (active && draft?.definition?.nodes) {
+          setText(JSON.stringify(draft.definition, null, 2));
+          setEditingId(draft.id);
+          setEditorOpen(true);
+        }
+      })
+      .catch((e) => active && setError(e.message));
+    return () => {
+      active = false;
+    };
+  }, [job?.id, job?.status, job?.draft_id]);
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
     api("/authoring/jobs")
@@ -1004,23 +939,18 @@ export function AdminStudio({
         const result = await api("/authoring/jobs/" + job.id);
         if (active) {
           setJob(result);
+          setError("");
           if (result.status !== "running") {
-            const updatedDrafts = await refresh();
+            await refresh();
             setJobs(await api("/authoring/jobs"));
-            if (result.status === "ready") {
-              const generated = updatedDrafts.find(
-                (draft) => draft.id === result.draft_id,
-              );
-              if (generated) {
-                setText(JSON.stringify(generated.definition, null, 2));
-                setTemplateOpen(true);
-              }
-              onDraftReady?.();
-            }
+            if (result.status === "ready") onDraftReady?.();
           } else timer = setTimeout(poll, 2000);
         }
       } catch (e) {
-        if (active) setError(e.message);
+        if (active) {
+          setError(e.message + " Checking the job again shortly…");
+          timer = setTimeout(poll, 4000);
+        }
       }
     }
     timer = setTimeout(poll, 1500);
@@ -1063,22 +993,25 @@ export function AdminStudio({
           {error}
         </p>
       )}
-      <section className="panel padded codex-author">
+      <section className="panel padded codex-author" id="scenario-authoring">
         <h2>1 · Create an exercise</h2>
+        <AuthoringPolicy />
         <label>
           Authoring engine
           <select value={engine} onChange={(e) => setEngine(e.target.value)}>
             <option value="codex">Primary: Codex (signed-in local CLI)</option>
             <option value="openai_api">Backup: OpenAI API (admin only)</option>
-            <option value="manual">Offline template</option>
+            <option value="manual">Manual scenario (no model required)</option>
           </select>
         </label>
-        {engine === "codex" && <CodexConnection onChange={setStatus} />}
-        <p className="tiny">
-          Codex is always the default primary. The API is an explicit admin
-          backup, never an automatic retry. Switching engines alone does not
-          send a prompt or incur API usage.
-        </p>
+        {engine === "codex" && (
+          <details className="connection-details">
+            <summary>
+              Codex connection · {status?.ready ? "Ready" : "Check setup"}
+            </summary>
+            <CodexConnection onChange={setStatus} />
+          </details>
+        )}
         {engine === "codex" &&
           status &&
           (!status.ready ||
@@ -1107,10 +1040,13 @@ export function AdminStudio({
             <OpenAIConnection onChange={setApiStatus} />
           </>
         )}
-        {engine === "codex" && <p>{status?.safety}</p>}
         <ScenarioDocuments
+          key={documentRevision}
           selected={documentIds}
-          onSelect={setDocumentIds}
+          onSelect={(ids) => {
+            setDocumentIds(ids);
+            setPrivacyPreview(null);
+          }}
           disabled={busy || job?.status === "running"}
         />
         {engine !== "manual" && (
@@ -1121,15 +1057,49 @@ export function AdminStudio({
                 rows="3"
                 maxLength={6000}
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe the learner role, workflow, incident and measurable success. Attach supporting references below."
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  setPrivacyPreview(null);
+                }}
               />
             </label>
-            <VoiceDictation
-              disabled={busy || job?.status === "running"}
-              onText={(words) =>
-                setPrompt((old) => (old + " " + words).trim().slice(0, 6000))
+            <button
+              className="secondary"
+              disabled={
+                busy || job?.status === "running" || prompt.trim().length < 30
               }
-            />
+              onClick={() =>
+                act(async () => {
+                  const preview = await api("/authoring/preview", {
+                    prompt,
+                    document_ids: documentIds,
+                  });
+                  setPrivacyPreview(preview);
+                })
+              }
+            >
+              Preview privacy checks
+            </button>
+            {privacyPreview && (
+              <>
+                <SecurityLog events={privacyPreview.security_log} />
+                <details>
+                  <summary>Sanitized brief sent to the authoring model</summary>
+                  <pre className="document-text">{privacyPreview.prompt}</pre>
+                </details>
+              </>
+            )}
+            <details>
+              <summary>Voice input (optional)</summary>
+              <VoiceDictation
+                disabled={busy || job?.status === "running"}
+                onText={(words) => {
+                  setPrompt((old) => (old + " " + words).trim().slice(0, 6000));
+                  setPrivacyPreview(null);
+                }}
+              />
+            </details>
             <button
               className="primary"
               disabled={
@@ -1141,7 +1111,13 @@ export function AdminStudio({
                 prompt.trim().length < 30
               }
               onClick={() =>
-                act(async () =>
+                act(async () => {
+                  setPrivacyPreview(
+                    await api("/authoring/preview", {
+                      prompt,
+                      document_ids: documentIds,
+                    }),
+                  );
                   setJob(
                     await api(
                       engine === "openai_api"
@@ -1149,8 +1125,8 @@ export function AdminStudio({
                         : "/authoring/codex",
                       { prompt, document_ids: documentIds },
                     ),
-                  ),
-                )
+                  );
+                })
               }
             >
               {engine === "openai_api"
@@ -1158,14 +1134,9 @@ export function AdminStudio({
                 : "Generate draft with Codex"}
             </button>
             <p className="tiny">
-              Your description and selected reference excerpts are sent to
-              OpenAI through the selected server connection. API requests use
-              separate API billing; they are not Codex CLI activity. Use
-              synthetic, non-sensitive requirements only.{" "}
-              {engine === "codex" &&
-                (status?.enabled
-                  ? status.mode
-                  : "Enable local authoring in the connection panel above. Production deployment requires server opt-in. Templates work offline.")}
+              Generation sends the screened brief and selected excerpts to
+              OpenAI. Use synthetic data. API backup is opt-in and billed
+              separately; there is no automatic fallback.
             </p>
             {job && (
               <p role="status">
@@ -1194,26 +1165,36 @@ export function AdminStudio({
       </section>
       <details
         className="panel padded template-authoring"
-        open={engine === "manual" || templateOpen}
+        open={editorOpen || engine === "manual"}
+        onToggle={(e) => setEditorOpen(e.currentTarget.open)}
       >
-        <summary>Use a tested template instead (works without Codex)</summary>
+        <summary>
+          Review and edit scenario · {parsed?.title || "New scenario"}
+        </summary>
         <p>
-          A template draft uses the same checks, admin review and publication
-          gate. Its source is recorded as manual, not Codex.
+          Generated drafts appear here automatically. Edit the current
+          definition or start a new scenario. Every draft needs validation and
+          administrator publication.
         </p>
         <div className="workspace-grid designer-grid">
           <section className="panel padded">
             <h3>World definition</h3>
             <div className="template-buttons">
-              {Object.entries(authorTemplates).map(([label, value]) => (
-                <button
-                  className="secondary"
-                  key={label}
-                  onClick={() => setText(JSON.stringify(value, null, 2))}
-                >
-                  {label}
-                </button>
-              ))}
+              <button
+                className="secondary"
+                disabled={busy || job?.status === "running"}
+                onClick={() => {
+                  setText(JSON.stringify(genericScenario, null, 2));
+                  setEditingId(null);
+                  setJob(null);
+                  setPrompt("");
+                  setDocumentIds([]);
+                  setDocumentRevision((value) => value + 1);
+                  setPrivacyPreview(null);
+                }}
+              >
+                New scenario
+              </button>
             </div>
             <label>
               Scenario definition JSON
@@ -1230,13 +1211,20 @@ export function AdminStudio({
               disabled={busy || !parsed}
               onClick={() =>
                 act(async () => {
-                  await api("/scenario-drafts", parsed);
+                  const saved = await api(
+                    editingId
+                      ? `/scenario-drafts/${editingId}/revise`
+                      : "/scenario-drafts",
+                    parsed,
+                  );
                   await refresh();
+                  setEditingId(saved.id);
+                  setText(JSON.stringify(saved.definition, null, 2));
                   onDraftReady?.();
                 })
               }
             >
-              Validate & save draft
+              {editingId ? "Validate & save revision" : "Validate & save draft"}
             </button>
             <p className="tiny">
               Definitions are constrained JSON, never executable uploads. No
@@ -1286,6 +1274,7 @@ export function AdminStudio({
                 </span>
               </div>
               <p>{d.definition.mission}</p>
+              <SecurityLog events={d.governance?.events} />
               <div className="validation-checks">
                 {d.checks.map((c) => (
                   <span className={c.passed ? "pass" : "fail"} key={c.name}>

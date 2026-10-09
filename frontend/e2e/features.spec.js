@@ -18,7 +18,7 @@ function watch(page, errors) {
   page.on("pageerror", (e) => errors.push(e.message));
 }
 
-test("learner investigates a crisis world: 3D, evidence, population, commander, diagnosis, scorecard", async ({
+test("learner investigates a crisis world: 3D, evidence, commander, diagnosis, scorecard", async ({
   page,
 }) => {
   test.setTimeout(180000);
@@ -42,30 +42,30 @@ test("learner investigates a crisis world: 3D, evidence, population, commander, 
     await page
       .getByRole("button", { name: "Step one simulated minute" })
       .click();
+  await page.getByText("Data & visual tools", { exact: true }).click();
   await page.getByRole("button", { name: "Live 3D", exact: true }).click();
   await expect(page.locator(".world3d canvas")).toBeVisible({ timeout: 30000 });
   await page.waitForTimeout(1500);
   await shot(page, "world-live-3d");
-  await page
-    .getByRole("button", { name: "Evidence locker", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Evidence", exact: true }).click();
   await expect(page.locator(".evidence-card").first()).toBeVisible({
     timeout: 20000,
   });
   await page.getByLabel("Evidence perspective").selectOption("medical");
   await expect(page.locator(".evidence-card").first()).toBeVisible();
   await shot(page, "world-evidence-locker");
-  await page.getByRole("button", { name: "Population", exact: true }).click();
-  await expect(page.locator(".deck-host canvas")).toBeVisible({
-    timeout: 30000,
-  });
-  await shot(page, "world-population-mesa");
+  await expect(
+    page.getByRole("button", { name: "Agent population", exact: true }),
+  ).toHaveCount(0);
+  await page.getByText("Data & visual tools", { exact: true }).click();
   await page
     .getByRole("button", { name: "Agent council", exact: true })
     .click();
   await page.getByRole("button", { name: "Ask the commander" }).click();
   await expect(page.locator(".plan-row").first()).toBeVisible();
-  await page.getByRole("button", { name: "Diagnosis", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Diagnose & act", exact: true })
+    .click();
   await page
     .getByLabel("First failing system")
     .selectOption({ label: "Community infections" });

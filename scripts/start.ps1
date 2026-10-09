@@ -24,7 +24,7 @@ $healthy = $false
 if (Test-Path -LiteralPath $venvPython) {
     $ErrorActionPreference = 'Continue'
     try {
-        & $venvPython -c "import sys, fastapi, uvicorn, simpy, mesa; sys.exit(0 if sys.version_info >= (3, 12) else 1)" 2>$null
+        & $venvPython -c "import sys, fastapi, uvicorn, simpy; sys.exit(0 if sys.version_info >= (3, 12) else 1)" 2>$null
         $healthy = ($LASTEXITCODE -eq 0)
     } catch { $healthy = $false }
     $ErrorActionPreference = 'Stop'

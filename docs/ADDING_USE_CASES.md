@@ -6,19 +6,19 @@ The hackathon edition has one authoring page: **Scenario Lab**, available only t
 |---|---|---|
 | Scenario Lab: Codex CLI | Admin / Trainer | Describe the learning mission; signed-in local CLI produces a checked draft |
 | Scenario Lab: OpenAI API | Admin / Trainer | Same workflow without a CLI installation; uses server-side API credentials |
-| Scenario Lab: Offline template | Admin / Trainer | Edit Supplier disruption, Service application or Block-building world JSON without an external model |
+| Scenario Lab: Manual scenario | Admin / Trainer | Edit a domain-neutral workflow JSON without an external model |
 | YAML pack file | Developer | Version-controlled packs in `scenario_packs/` or `backend/packs/` |
 
 ## Scenario Lab: the supported UI flow
 
 1. Sign in as `admin` and open **Scenario Lab**.
-2. Select **Codex CLI**, **OpenAI API** or **Offline template**. For CLI, enable authoring and sign in through the connection panel. For API, enter a key/model in the masked admin connection panel; saving does not make a billed generation request. See [README credential safety](../README.md#api-credential-safety).
+2. Select **Codex CLI**, **OpenAI API** or **Manual scenario**. For CLI, enable authoring and sign in through the connection panel. For API, enter a key/model in the masked admin connection panel; saving does not make a billed generation request. See [README credential safety](../README.md#api-credential-safety).
 3. Describe the learner's mission, systems, work units, branching dependencies, hidden incident, evidence and measurable success criteria. Use `service_app` for mock software and `voxel` for block-building worlds. The CLI/API paths create constrained JSON, not arbitrary applications or executed code.
 4. Generate a draft, or edit the template JSON and **Validate & save draft**. Python runs schema and simulation checks.
 5. On the same page, inspect **Check and publish**. Check the mission, workflow and all validation results, then **Publish & notify learners**. There is no separate SOP page, advanced builder, sandbox page or third-role approval.
 6. The learner opens the notification, generates a seeded workload and inspects linked tables. The simulation uses those saved records. Prepared environments remain available in **Training datasets → Scenario-generated datasets**.
 
-For procedure-based scenarios, translate a non-sensitive SOP into synthetic requirements in this same page. Automated document-upload/sanitization and the old SOP repair pipeline are not exposed in this simplified UI. Validate domain accuracy with a subject-matter expert before relying on an AI-generated exercise.
+For procedure-based scenarios, upload non-sensitive SOP references and inspect their locally screened previews. PDF/DOCX/TXT/Markdown/CSV/JSON are supported; images need a reviewed description, with no OCR or visual PII guarantee. For FactoryPulse, paste the [admin prompt](../samples/sample1/admin_prompt.txt) and upload the [operations brief](../samples/sample1/FactoryPulse_Operations_Brief.docx) and [sensor charts](../samples/sample1/FactoryPulse_Sensor_Charts.pdf). The [synthetic privacy examples](../samples/sample1/FactoryPulse_Privacy_Examples.docx) are optional and only for demonstrating screening; inspect the preview for redactions. Both providers use [the shared system prompt](../config/scenario_authoring_system.txt). The old SOP factory remains an internal compatibility engine. Validate domain accuracy with a subject-matter expert. **Edit and revalidate** saves a checked revision with source provenance if the initial definition needs correction.
 
 ## Legacy developer tooling: terminal sandbox (not a demo page)
 
@@ -44,7 +44,7 @@ The earlier factory backend is retained for compatibility and regression testing
 
 ## Scenario Lab template JSON
 
-Admin / Trainer → **Scenario Lab** → **Offline template**: start from *Supplier disruption*, *Service application* or *Block-building world*, edit the
+Admin / Trainer → **Scenario Lab** → **Manual scenario**: start from the generic workflow or paste your own validated JSON, edit the
 JSON (systems, dependencies, incident node, cause, learner role, mission, success), **Validate &
 save draft**, then publish.
 

@@ -62,6 +62,14 @@ test("one Scenario Lab: admin configures a write-only API key; learner cannot ac
   await expect(panel).toContainText("server memory");
   await expect(
     admin.getByRole("button", { name: "Generate draft with OpenAI API" }),
+  ).toBeDisabled();
+  await admin
+    .getByLabel("Scenario description")
+    .fill(
+      "Create a synthetic supplier workflow for evidence-led incident practice. Include safe investigation, targeted repair and a reviewed publication gate.",
+    );
+  await expect(
+    admin.getByRole("button", { name: "Generate draft with OpenAI API" }),
   ).toBeEnabled();
   const status = await admin.request.get("/api/authoring/openai");
   expect(status.ok()).toBeTruthy();
@@ -102,127 +110,6 @@ test("one Scenario Lab: admin configures a write-only API key; learner cannot ac
   expect(errors).toEqual([]);
   await ac.close();
   await lc.close();
-});
-
-test("Codex draft updates the tested template JSON for prompt and document inputs", async ({
-  page,
-}) => {
-  const jobs = new Map();
-  const generated = [];
-  let nextJob = 0;
-  const document = {
-    id: "reference-1",
-    name: "pump-station-notes.txt",
-    size: 70,
-    sha256: "synthetic-hash",
-    text: "Synthetic pump station maintenance notes for a training scenario.",
-    warnings: [],
-    redactions: { total: 0 },
-  };
-
-  await page.route("**/api/authoring/status*", (route) =>
-    route.fulfill({
-      json: {
-        ready: true,
-        enabled: true,
-        installed: true,
-        authenticated: true,
-        can_configure: false,
-        reason: "Ready for mocked UI authoring",
-        mode: "Mocked Codex for browser verification",
-        safety: "Synthetic test only",
-      },
-    }),
-  );
-  await page.route("**/api/authoring/login", (route) =>
-    route.fulfill({ json: { status: "idle" } }),
-  );
-  await page.route("**/api/authoring/jobs", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/authoring/codex", async (route) => {
-    const request = route.request().postDataJSON();
-    const index = ++nextJob;
-    const id = `job-${index}`;
-    const draftId = `draft-${index}`;
-    const definition = {
-      title: `Generated scenario ${index}`,
-      summary: "A synthetic exercise generated for UI verification.",
-      mission: `Output updated for input ${index}`,
-      cause: `Synthetic hidden cause ${index} for testing the editor update.`,
-      incident_node: "station",
-      nodes: [
-        {
-          id: "station",
-          label: "Pumping station",
-          role: "operations",
-          capacity: 4,
-        },
-        { id: "main", label: "Rising main", role: "engineering", capacity: 4 },
-        {
-          id: "stream",
-          label: "Receiving stream",
-          role: "environment",
-          capacity: 4,
-        },
-      ],
-      edges: [
-        { source: "station", target: "main" },
-        { source: "main", target: "stream" },
-      ],
-    };
-    generated.push({
-      id: draftId,
-      definition,
-      checks: [],
-      status: "draft",
-      source: "codex",
-    });
-    jobs.set(id, {
-      id,
-      status: "ready",
-      draft_id: draftId,
-      message: "Mock generation complete.",
-    });
-    jobs.get(id).request = request;
-    await route.fulfill({ json: { id, status: "running" } });
-  });
-  await page.route("**/api/authoring/jobs/*", async (route) => {
-    const id = route.request().url().split("/").pop();
-    await route.fulfill({ json: jobs.get(id) });
-  });
-  await page.route("**/api/scenario-drafts", (route) =>
-    route.fulfill({ json: generated }),
-  );
-  await page.route("**/api/scenario-documents", async (route) => {
-    if (route.request().method() === "POST") {
-      await route.fulfill({ json: { documents: [document], errors: [] } });
-    } else {
-      await route.fulfill({ json: [] });
-    }
-  });
-
-  await signIn(page, "admin");
-  await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
-  const prompt =
-    "Create a synthetic water pumping station exercise. Investigate a telemetry blind spot and choose containment actions.";
-  await page.getByLabel("Scenario description").fill(prompt);
-  await page.getByRole("button", { name: "Generate draft with Codex" }).click();
-  const output = page.getByLabel("Scenario definition JSON");
-  await expect(output).toHaveValue(/Generated scenario 1/);
-  expect(jobs.get("job-1").request.prompt).toBe(prompt);
-  expect(jobs.get("job-1").request.document_ids).toEqual([]);
-
-  await page.getByLabel("Scenario documents (multiple files)").setInputFiles({
-    name: "pump-station-notes.txt",
-    mimeType: "text/plain",
-    buffer: Buffer.from(document.text),
-  });
-  await expect(page.getByLabel("pump-station-notes.txt")).toBeChecked();
-  await page.getByRole("button", { name: "Generate draft with Codex" }).click();
-  await expect(output).toHaveValue(/Generated scenario 2/);
-  expect(jobs.get("job-2").request.prompt).toBe(prompt);
-  expect(jobs.get("job-2").request.document_ids).toEqual([document.id]);
 });
 
 test("All exercises discovers ML investigations without a separate ML navigation page", async ({

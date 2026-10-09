@@ -70,7 +70,7 @@ test("breadcrumbs, browser Back/Forward and reload navigate between workspace, r
   await expect(page).toHaveURL(/#\/overview$/);
   await expect(
     page.getByRole("heading", {
-      name: "Practise real decisions. Without real-world risk.",
+      name: "My learning workspace",
     }),
   ).toBeVisible();
 

@@ -139,11 +139,47 @@ function encoded(file) {
   });
 }
 
+const isImage = (file) => /\.(png|jpe?g|webp)$/i.test(file.name);
+
+function ImageDescription({ file, value, onChange }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    const local = URL.createObjectURL(file);
+    setUrl(local);
+    return () => URL.revokeObjectURL(local);
+  }, [file]);
+  return (
+    <div className="document-reference">
+      <img
+        src={url}
+        alt={`Local preview of ${file.name}`}
+        style={{ maxWidth: "100%", maxHeight: 180, objectFit: "contain" }}
+      />
+      <label>
+        Reviewed description for {file.name}
+        <textarea
+          value={value || ""}
+          maxLength={6000}
+          rows={3}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </label>
+    </div>
+  );
+}
+
 export function ScenarioDocuments({ selected, onSelect, disabled }) {
   const [documents, setDocuments] = useState([]);
+  const [showAll, setShowAll] = useState(false);
+  const [visibleIds, setVisibleIds] = useState(selected);
+  useEffect(() => {
+    setVisibleIds((old) => [...new Set([...old, ...selected])]);
+  }, [selected]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [pending, setPending] = useState([]);
+  const [descriptions, setDescriptions] = useState({});
   useEffect(() => {
     api("/scenario-documents")
       .then(setDocuments)
@@ -163,17 +199,29 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
       setError("Select up to 8 files, at most 2 MiB each and 8 MiB total.");
       return;
     }
+    if (files.some(isImage)) {
+      setPending(files);
+      setDescriptions({});
+      return;
+    }
+    await send(files);
+  }
+  async function send(files) {
     setBusy(true);
+    setError("");
     try {
       const result = await api("/scenario-documents", {
         files: await Promise.all(
           files.map(async (file) => ({
             name: file.name,
             content: await encoded(file),
+            description: descriptions[file.name] || "",
           })),
         ),
       });
       setDocuments((old) => [...result.documents, ...old]);
+      setPending([]);
+      setDescriptions({});
       onSelect(
         [...new Set([...selected, ...result.documents.map((d) => d.id)])].slice(
           0,
@@ -199,30 +247,66 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
       aria-label="Scenario reference documents"
     >
       <h3>Upload scenario documents</h3>
-      <p>
-        Upload multiple SOPs, workflow descriptions or training guides together:
-        PDF, DOCX, TXT and Markdown. Up to 8 files per batch; 2 MiB per file, 8
-        MiB total. Text PDFs only; no OCR or macros.
+      <p className="tiny">
+        PDF, DOCX, TXT, Markdown, CSV, JSON, PNG, JPG or WebP. Up to 8 files; 2
+        MiB each, 8 MiB total.
       </p>
       <p className="tiny">
-        Only extracted, bounded text is kept locally; originals are not
-        retained. Common PII patterns are redacted, but detection is not
-        complete. Preview every reference and use synthetic/non-sensitive
-        documents. Nothing is sent to an AI provider until you explicitly
-        generate a draft. Templates do not automatically incorporate reference
-        text.
+        PII screening is partial: review each preview. Only extracted text or
+        reviewed image descriptions are kept. No OCR. Nothing reaches the model
+        until you generate; manual JSON does not read references.
       </p>
       <label>
         Scenario documents (multiple files)
         <input
           type="file"
           multiple
-          accept=".pdf,.docx,.txt,.md"
+          accept=".pdf,.docx,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp"
           disabled={busy || disabled}
           onChange={upload}
         />
       </label>
       {busy && <p role="status">Extracting document text locally…</p>}
+      {pending.length > 0 && (
+        <section aria-label="Review image references">
+          <p>
+            Describe the relevant workflow or observations in each image. Pixels
+            stay in this browser preview and local verification; only your
+            screened description reaches the model. Names or identifiers inside
+            pixels are not automatically detected.
+          </p>
+          {pending.filter(isImage).map((file) => (
+            <ImageDescription
+              key={file.name}
+              file={file}
+              value={descriptions[file.name]}
+              onChange={(text) =>
+                setDescriptions((old) => ({ ...old, [file.name]: text }))
+              }
+            />
+          ))}
+          <button
+            className="secondary"
+            disabled={
+              busy ||
+              disabled ||
+              pending
+                .filter(isImage)
+                .some((f) => (descriptions[f.name] || "").trim().length < 30)
+            }
+            onClick={() => send(pending)}
+          >
+            Upload reviewed references
+          </button>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => setPending([])}
+          >
+            Cancel image upload
+          </button>
+        </section>
+      )}
       {error && (
         <p className="error-banner" role="alert">
           {error}
@@ -234,40 +318,55 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
         fairly into a 24,000-character context budget; full extracted previews
         remain available.
       </p>
-      {documents.map((d) => (
-        <article className="document-reference" key={d.id}>
-          <label className="voice-consent">
-            <input
-              type="checkbox"
-              checked={selected.includes(d.id)}
-              disabled={
-                disabled || (!selected.includes(d.id) && selected.length >= 8)
-              }
-              onChange={(e) =>
-                onSelect(
-                  e.target.checked
-                    ? [...selected, d.id]
-                    : selected.filter((id) => id !== d.id),
-                )
-              }
-            />{" "}
-            {d.name}
-          </label>
-          <small>
-            {d.text.length.toLocaleString()} extracted characters ·{" "}
-            {d.redactions.total} detected PII matches redacted
-          </small>
-          {d.warnings.map((warning) => (
-            <p className="tiny" key={warning}>
-              {warning}
-            </p>
+      <details className="reference-library">
+        <summary>
+          Review reference documents ({selected.length} selected)
+        </summary>
+        {documents.some((d) => !visibleIds.includes(d.id)) && (
+          <button className="secondary" onClick={() => setShowAll(!showAll)}>
+            {showAll
+              ? "Show selected references only"
+              : `Browse saved references (${documents.filter((d) => !visibleIds.includes(d.id)).length})`}
+          </button>
+        )}
+        {documents
+          .filter((d) => showAll || visibleIds.includes(d.id))
+          .map((d) => (
+            <article className="document-reference" key={d.id}>
+              <label className="voice-consent">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(d.id)}
+                  disabled={
+                    disabled ||
+                    (!selected.includes(d.id) && selected.length >= 8)
+                  }
+                  onChange={(e) =>
+                    onSelect(
+                      e.target.checked
+                        ? [...selected, d.id]
+                        : selected.filter((id) => id !== d.id),
+                    )
+                  }
+                />{" "}
+                {d.name}
+              </label>
+              <small>
+                {d.text.length.toLocaleString()} extracted characters ·{" "}
+                {d.redactions.total} detected PII matches redacted
+              </small>
+              {d.warnings.map((warning) => (
+                <p className="tiny" key={warning}>
+                  {warning}
+                </p>
+              ))}
+              <details>
+                <summary>Preview extracted text: {d.name}</summary>
+                <pre className="document-text">{d.text}</pre>
+              </details>
+            </article>
           ))}
-          <details>
-            <summary>Preview extracted text: {d.name}</summary>
-            <pre className="document-text">{d.text}</pre>
-          </details>
-        </article>
-      ))}
+      </details>
     </section>
   );
 }

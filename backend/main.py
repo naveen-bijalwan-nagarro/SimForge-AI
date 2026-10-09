@@ -17,6 +17,8 @@ from . import catalog, experience, labs, settings, store
 from .engine import ROLES, agent_workflow, graph_for, roles_in, simulate
 from .extensions import install as install_extensions
 from .factory.api import install as install_factory
+from .learning import install as install_learning
+from .learning import view as learning_view
 from .studio import install
 
 
@@ -80,6 +82,12 @@ async def safe_validation(request: Request, exc: RequestValidationError):
         return JSONResponse(status_code=422, content={"detail": "Invalid API connection settings"})
     if request.url.path == "/api/scenario-documents":
         return JSONResponse(status_code=422, content={"detail": "Invalid upload: select 1–8 named documents, at most 2 MiB each."})
+    if request.url.path.startswith(("/api/authoring", "/api/scenario-drafts")) or "/learning-" in request.url.path:
+        # Pydantic's default response includes input values, potentially including PII.
+        return JSONResponse(status_code=422, content={"detail": "; ".join(
+            ".".join(str(p) for p in e["loc"]) + ": " + e["msg"]
+            for e in exc.errors()[:8]
+        )})
     from fastapi.exception_handlers import request_validation_exception_handler
     return await request_validation_exception_handler(request, exc)
 
@@ -128,6 +136,7 @@ def health():
         engine="SimPy + NetworkX",
         database="SQLite",
         cpu_only=True,
+        api_contract="scenario-lab-objective-v3",
         mode="production" if settings.PRODUCTION else "development",
     )
 
@@ -297,6 +306,10 @@ def run_view(row, role="operations"):
         version=row["version"],
         clock=p.get("clock", {"running": False, "speed": 1}),
         preparation_id=p.get("preparation_id"),
+        learning_progress=dict(
+            baseline_recorded=bool(p.get("learning_check", {}).get("before")),
+            post_submitted=bool(p.get("learning_check", {}).get("after")),
+        ),
         briefing=p.get("briefing") or experience.briefing(p["spec"]),
         environment_style=p["spec"].get("environment_style", "workflow"),
         live=experience.live_summary(result),
@@ -423,6 +436,8 @@ def agents(rid: str, current=Depends(user)):
 def fork_run(rid: str, current=Depends(user)):
     row = resource(rid, "run", current)
     payload = copy.deepcopy(row["payload"])
+    payload.pop("learning_check", None)
+    payload.pop("diagnosis", None)
     payload.update(tick=0, decisions=[], parent=rid, clock={"running": False, "speed": 1})
     new_id = store.create("run", current["id"], payload)
     return run_view(store.get(new_id))
@@ -447,6 +462,7 @@ def report(rid: str, current=Depends(user)):
     result["note"] = (
         "Illustrative synthetic units, not forecasts or real financial/safety advice. Baseline uses the identical seed, population and horizon with no decisions."
     )
+    result["learning"] = learning_view(row)
     return result
 
 
@@ -681,7 +697,7 @@ def create_world(body: WorldDraft, current=Depends(admin)):
 
 def spec_from_draft(body):
     root = body.incident_node
-    downstream = next((n.id for n in body.nodes if n.id != root), root)
+    downstream = next((e.target for e in body.edges if e.source == root), root)
     spec = catalog.world(
         "draft",
         "",
@@ -732,6 +748,8 @@ def audit_log(current=Depends(admin)):
 install(app, user, admin, resource, scenario, WorldDraft)
 install_extensions(app, user, admin, resource, scenario)
 install_factory(app, user, admin, resource)
+
+install_learning(app, user, admin, resource)
 
 # npm build produces static assets; one Uvicorn process can serve both API and React.
 frontend = settings.ROOT / "frontend/dist"

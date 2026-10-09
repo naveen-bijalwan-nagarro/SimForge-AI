@@ -29,5 +29,5 @@
   decoys: [A creeper attack damaged the workshop, Night-time mob spawns slowed villagers, A redstone circuit fault stopped the furnaces]
   agents: {engineering: Mine foreman, operations: Village quartermaster, finance: Trade master, executive: Village elder}
   entity: {job: 'seq:CRAFT', item: [pickaxe, shovel, door, bed, rail], villager: Employee, blocks: [4, 64]}
-  building_blocks: [SimPy, NetworkX, Mesa]
+  building_blocks: [SimPy, NetworkX]
   objectives: [Keep villagers housed, Restore tool supply, Keep trade alive]

@@ -26,6 +26,10 @@ ROLE_TERMS = {
 }
 RESERVED_DOMAIN = re.compile(r"(?i)@(?:[\w-]+\.)*(?:example\.(?:com|org|net)|[\w-]+\.example|[\w-]+\.invalid|[\w-]+\.test)$")
 PATTERNS = [
+    ("SECRET", re.compile(r"\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b")),
+    ("SECRET", re.compile(r"(?i)\b(?:api[_ -]?key|access[_ -]?token|password|secret)\s*[:=]\s*[\"']?([A-Za-z0-9_./+\-=]{8,})")),
+    ("INDIAN_PAN", re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b")),
+    ("AADHAAR_NUMBER", re.compile(r"\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b")),
     ("EMAIL_ADDRESS", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
     ("IBAN_CODE", re.compile(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b")),
     ("CREDIT_CARD", re.compile(r"\b(?:\d[ -]?){13,19}\b")),
@@ -34,6 +38,7 @@ PATTERNS = [
     ("IP_ADDRESS", re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
     ("ACCOUNT_NUMBER", re.compile(r"(?i)\b(?:account|acct|a/c|iban|policy|member)\s*(?:no\.?|number|#)?\s*[:#]?\s*(\d[\d-]{5,20})")),
     ("DATE_OF_BIRTH", re.compile(r"(?i)\b(?:dob|date of birth|born)\s*[:]?\s*\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}")),
+    ("PHONE_NUMBER", re.compile(r"(?<![\w])(?:\+91[ -]?)?[6-9]\d{9}(?!\w)")),
 ]
 
 

@@ -6,12 +6,11 @@ simpy>=4.1,<5
 networkx>=3.2,<4
 Faker>=37,<41
 PyYAML>=6,<7
-# Simulation, ML failure lab, vision and agent populations
+# Simulation, ML failure lab and vision
 numpy>=2,<3
 scikit-learn>=1.5,<2
 scipy>=1.13,<2
 pillow>=10,<13
-mesa>=3,<4
 # SimForge AI: SOP factory orchestration, MCP tool server, PDF SOP uploads
 langgraph>=1,<2
 mcp>=2,<3

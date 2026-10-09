@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { SecurityLog } from "./AuthoringSecurity";
 import { ScenarioCleanup } from "./ScenarioInputs";
 import { ArrowRight, ClipboardCheck } from "lucide-react";
 import { api } from "./client";
@@ -6,17 +7,17 @@ import { AdminStudio, TrainingDesk } from "./Experience";
 
 const roles = {
   admin: {
-    title: "Create safe practice. Publish with confidence.",
+    title: "Training management",
     purpose:
-      "You are the scenario creator and trainer: create a draft, inspect its checks, publish it, assign it and observe results. You do not need a separate trainer account.",
+      "Create exercises, publish to learners and review learning evidence.",
     action: "Create a scenario",
     destination: "designer",
     tab: "create",
   },
   learner: {
-    title: "Practise real decisions. Without real-world risk.",
+    title: "My learning workspace",
     purpose:
-      "You work with linked synthetic records, investigate an unfolding incident, choose a response and explain the result. No live business system is connected.",
+      "Practise decisions with synthetic records. No live business systems are connected.",
     action: "Run a scenario",
     destination: "catalog",
   },
@@ -55,6 +56,9 @@ export function RoleHome({
     };
   }, [user.id, user.role, retry]);
   const supplier =
+    scenarios.find(
+      (s) => /supplier disruption/i.test(s.title) && s.key !== "supply_chain",
+    ) ||
     scenarios.find((s) => s.key === "supply_chain") ||
     scenarios.find((s) => s.key === "supplier_risk");
   const pending = facts?.drafts?.filter((d) => d.status !== "published").length;
@@ -64,7 +68,7 @@ export function RoleHome({
   return (
     <>
       <section className="mission-home" aria-label="Your next step">
-        <span className="eyebrow">SIMFORGE AI · SAFE BUSINESS PRACTICE</span>
+        <span className="eyebrow">SIMFORGE AI</span>
         <h1>{role.title}</h1>
         <p>{role.purpose}</p>
         <div className="actions">
@@ -86,48 +90,6 @@ export function RoleHome({
               : "View my training"}
           </button>
         </div>
-      </section>
-      <section
-        className="journey-strip"
-        aria-label="How the two roles work together"
-      >
-        {[
-          [
-            "Admin / Trainer",
-            "Create a scenario",
-            "Draft the workflow, hidden incident and permitted responses.",
-          ],
-          [
-            "Admin / Trainer",
-            "Validate and publish",
-            "Inspect checks and learning goals; publish and notify learners.",
-          ],
-          [
-            "Learner",
-            "Investigate and decide",
-            "Inspect mock data, respond to the incident and explain the outcome.",
-          ],
-          [
-            "Learner",
-            "Learn from the result",
-            "Compare with no intervention and justify the decisions you made.",
-          ],
-        ].map(([who, title, detail], index) => (
-          <article
-            key={title}
-            className={
-              (who === "Learner") === (user.role === "learner")
-                ? "current-role"
-                : ""
-            }
-          >
-            <small>
-              {index + 1} · {who}
-            </small>
-            <strong>{title}</strong>
-            <p>{detail}</p>
-          </article>
-        ))}
       </section>
       {error && (
         <p className="error-banner" role="alert">
@@ -166,17 +128,11 @@ export function RoleHome({
       <div className="focus-grid">
         <section className="panel padded flagship">
           <span className="eyebrow">FEATURED BUSINESS EXERCISE</span>
-          <h2>A supplier stops dispatching. What do you do next?</h2>
+          <h2>Supplier disruption</h2>
           <p>
-            Trace the impact through inventory, logistics, production and
-            customer delivery. Identify the first failing system, choose a
-            response and compare with the same workload without intervention.
+            Trace delayed orders, investigate the failing handoff and compare
+            your response with the same workload without intervention.
           </p>
-          <ol>
-            <li>Inspect an affected order and its evidence.</li>
-            <li>Explain the cause before committing a response.</li>
-            <li>Measure recovery, delays and synthetic impact.</li>
-          </ol>
           <button
             className="primary"
             disabled={!supplier}
@@ -190,30 +146,25 @@ export function RoleHome({
           className="panel padded"
           aria-label="What is real and what is simulated"
         >
-          <h2>Explainable by design</h2>
+          <h2>Learning evidence</h2>
           <p>
-            <b>Codex authors a draft.</b> Python generates linked mock data and
-            executes the scenario. The result must pass checks and human review.
+            Take a quick knowledge check, practise the scenario and see
+            objective feedback from your answers, diagnosis and actions.
           </p>
           <p>
-            <b>Your actions have visible consequences.</b> Costs, delays, queues
-            and recovery are calculated from the same reproducible workload.
-          </p>
-          <p>
-            <b>The boundary is explicit.</b> These are training simulations, not
-            production-system replicas or validated physical twins. Simulated
-            savings are not proven customer savings.
+            Simulation outcomes and learning-check results are reported
+            separately.
           </p>
           <details>
-            <summary>Four-minute presentation route</summary>
+            <summary>Training boundaries</summary>
             <p>
-              Explain the need → admin creates and checks a scenario → admin
-              publishes → learner opens the notification, investigates and acts
-              → compare outcomes. Assignments and coaching are optional.
+              Costs and impact are synthetic, not proven customer savings. A
+              short practice check does not establish job competence.
             </p>
             <p>
-              Use separate browser profiles for admin and learner. Clearly
-              identify any pre-generated draft used as a latency fallback.
+              Codex drafts definitions; Python runs the simulation without a
+              model. Use separate browser profiles for simultaneous admin and
+              learner sessions.
             </p>
           </details>
         </section>
@@ -222,7 +173,7 @@ export function RoleHome({
   );
 }
 
-export function ScenarioReviews({ user, onPublished }) {
+export function ScenarioReviews({ user, onPublished, onEdit }) {
   const [drafts, setDrafts] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -275,9 +226,8 @@ export function ScenarioReviews({ user, onPublished }) {
         <div>
           <h2>2 · Check and publish</h2>
           <p>
-            As Admin / Trainer, inspect the learning mission, permitted
-            responses and validation checks, then publish. A separate trainer
-            approval is not required. Learners are notified automatically.
+            Review the mission, references and checks. Publishing notifies
+            learners.
           </p>
         </div>
         <ClipboardCheck size={23} />
@@ -322,6 +272,18 @@ export function ScenarioReviews({ user, onPublished }) {
               Author: {draft.owner} · Version {draft.version} · {passed}/
               {draft.checks.length} scenario checks passed
             </p>
+            {draft.governance && (
+              <p className="tiny">
+                Privacy policy {draft.governance.policy_version} · brief
+                redactions {draft.governance.input_privacy?.total || 0} ·
+                generated-text redactions{" "}
+                {draft.governance.output_privacy?.total || 0}.{" "}
+                {draft.edited_by
+                  ? "Administrator revised this draft; source provenance retained."
+                  : "Human review required before publication."}
+              </p>
+            )}
+            <SecurityLog events={draft.governance?.events} />
             {draft.documents?.length > 0 && (
               <details>
                 <summary>
@@ -359,19 +321,30 @@ export function ScenarioReviews({ user, onPublished }) {
               </p>
             )}
             {user.role === "admin" && (
-              <button
-                className="primary"
-                disabled={
-                  busy !== null ||
-                  passed !== draft.checks.length ||
-                  draft.status === "published"
-                }
-                onClick={() => act(draft)}
-              >
-                {draft.status === "published"
-                  ? "Published"
-                  : "Publish & notify learners"}
-              </button>
+              <>
+                {draft.definition.nodes && (
+                  <button
+                    className="secondary"
+                    disabled={busy !== null}
+                    onClick={() => onEdit(draft)}
+                  >
+                    Edit and revalidate
+                  </button>
+                )}
+                <button
+                  className="primary"
+                  disabled={
+                    busy !== null ||
+                    passed !== draft.checks.length ||
+                    draft.status === "published"
+                  }
+                  onClick={() => act(draft)}
+                >
+                  {draft.status === "published"
+                    ? "Published"
+                    : "Publish & notify learners"}
+                </button>
+              </>
             )}
           </article>
         );
@@ -383,17 +356,14 @@ export function ScenarioReviews({ user, onPublished }) {
 export function ScenarioStudio({ user, Graph, onPublished }) {
   const [revision, setRevision] = useState(0);
   const [cleanupRevision, setCleanupRevision] = useState(0);
+  const [editingDraft, setEditingDraft] = useState(null);
   return (
     <>
       <div className="page-heading">
         <div>
           <span className="eyebrow">ADMIN / TRAINER · SCENARIO LAB</span>
           <h1>Scenario Lab</h1>
-          <p>
-            Create, validate and publish scenarios in one place. Learners
-            receive the published exercise; you can assign it and observe their
-            results without a separate trainer account.
-          </p>
+          <p>Draft an exercise, review the checks and publish to learners.</p>
         </div>
       </div>
       <AdminStudio
@@ -401,9 +371,15 @@ export function ScenarioStudio({ user, Graph, onPublished }) {
         Graph={Graph}
         compact
         showReview={false}
+        editingDraft={editingDraft}
         onDraftReady={() => setRevision((x) => x + 1)}
       />
-      <ScenarioReviews key={revision} user={user} onPublished={onPublished} />
+      <ScenarioReviews
+        key={revision}
+        user={user}
+        onPublished={onPublished}
+        onEdit={(draft) => setEditingDraft({ ...draft })}
+      />
       <ScenarioCleanup
         onChanged={async () => {
           setRevision((x) => x + 1);

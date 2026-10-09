@@ -9,17 +9,19 @@ from fastapi import BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, SecretStr
 
-from . import authoring, catalog, drafts as draft_store, experience, labs, packs, store
+from . import authoring, catalog, drafts as draft_store, experience, labs, packs, scenario_policy, store
 from . import scenario_lifecycle as lifecycle, scenario_sources as sources
 
 
 def checks_for(body):
     from .main import spec_from_draft
 
-    return spec_from_draft(body), packs.scenario_tests(spec_from_draft(body))
+    spec = spec_from_draft(body)
+    return spec, packs.scenario_tests(spec) + scenario_policy.review_checks(spec)
 
 
 def publish_direct(body, current, draft_row=None):
+    body = type(body).model_validate(scenario_policy.clean(body.model_dump()))
     spec, checks = checks_for(body)
     return publish_spec(spec, checks, current, draft_row)
 
@@ -41,11 +43,18 @@ def pack_draft(pack, current_id, source, extra=None):
 
 
 def publish_spec(spec, checks, current, draft_row=None):
+    checks = [c for c in checks if c["category"] not in {"privacy", "governance"}] + scenario_policy.review_checks(spec)
     if not all(c["passed"] for c in checks):
         raise HTTPException(
             422, {"message": "Scenario must pass every publish check", "checks": checks}
         )
     sid = secrets.token_hex(12)
+    governance = dict(draft_row["payload"].get("governance", {}) if draft_row else {})
+    governance["events"] = [e for e in governance.get("events", [])
+                            if not (e["stage"] == "Administrator publication approval" and e["status"] == "pending")] + [
+        scenario_policy.security_event("Publication privacy and governance recheck"),
+        scenario_policy.security_event("Administrator publication approval", actor=current["id"]),
+    ]
     spec["key"] = "custom_" + sid
     spec["publication"] = dict(
         status="published", author=current["id"], created=time.time(),
@@ -53,6 +62,7 @@ def publish_spec(spec, checks, current, draft_row=None):
         draft_author=draft_row["owner"] if draft_row else current["id"],
         source=draft_row["payload"]["source"] if draft_row else "manual",
         documents=draft_row["payload"].get("documents", []) if draft_row else [],
+        governance=governance,
     )
     with store.connection() as db:
         if draft_row:
@@ -60,7 +70,8 @@ def publish_spec(spec, checks, current, draft_row=None):
             if not latest or json.loads(latest[0]).get("archived"):
                 raise HTTPException(409, "Archived draft cannot be published")
             payload = dict(
-                draft_row["payload"], status="published", scenario_key=spec["key"], checks=checks
+                draft_row["payload"], status="published", scenario_key=spec["key"], checks=checks,
+                governance=governance,
             )
             changed = db.execute(
                 "UPDATE resources SET payload=?,version=version+1 WHERE id=? AND version=?",
@@ -374,9 +385,53 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.post("/api/scenario-drafts")
     def create_draft(body: draft_model, current=Depends(admin)):
+        findings = scenario_policy.privacy_summary(body.model_dump())
+        body = draft_model.model_validate(scenario_policy.clean(body.model_dump()))
         _, checks = checks_for(body)
-        payload = dict(definition=body.model_dump(), status="draft", checks=checks, source="manual")
+        payload = dict(definition=body.model_dump(), status="draft", checks=checks, source="manual",
+                       governance=scenario_policy.draft_governance(findings, checks))
         return draft_store.save(payload, current["id"])
+
+    @app.post("/api/scenario-drafts/{rid}/revise")
+    def revise_draft(rid: str, body: draft_model, current=Depends(admin)):
+        previous = resource(rid, "scenario_draft", current)
+        if previous["payload"].get("archived"):
+            raise HTTPException(409, "Restore an archived draft before revising")
+        findings = scenario_policy.privacy_summary(body.model_dump())
+        body = draft_model.model_validate(scenario_policy.clean(body.model_dump()))
+        _, checks = checks_for(body)
+        return draft_store.save(dict(
+            definition=body.model_dump(), status="draft", checks=checks,
+            source=previous["payload"]["source"], revised_from=rid, edited_by=current["id"],
+            documents=previous["payload"].get("documents", []),
+            governance=scenario_policy.draft_governance(findings, checks, previous["payload"].get("governance")),
+        ), current["id"])
+
+    @app.get("/api/authoring/policy")
+    def authoring_policy(current=Depends(admin)):
+        import hashlib
+        prompt = scenario_policy.system_prompt()
+        return dict(policy_version=scenario_policy.POLICY_VERSION, system_prompt=prompt,
+                    sha256=hashlib.sha256(prompt.encode()).hexdigest())
+
+    @app.get("/api/scenario-examples")
+    def examples(current=Depends(admin)):
+        from .scenario_examples import catalogue
+        return dict(examples=catalogue(), policy_version=scenario_policy.POLICY_VERSION,
+                    system_prompt=scenario_policy.system_prompt())
+
+    @app.post("/api/scenario-examples/{key}/load")
+    def load_example(key: str, current=Depends(admin)):
+        from .scenario_examples import load
+        return load(key, current["id"])
+
+    @app.post("/api/authoring/preview")
+    def preview_authoring(body: CodexRequest, current=Depends(admin)):
+        prompt, findings = sources.sanitize(body.prompt)
+        context, documents = sources.reference_context(prompt, body.document_ids, current)
+        return dict(prompt=prompt, input_privacy=findings, documents=documents,
+                    security_log=scenario_policy.input_log(findings, documents),
+                    context_characters=len(context), policy_version=scenario_policy.POLICY_VERSION)
 
     @app.post("/api/scenario-drafts/{rid}/publish")
     def publish(rid: str, current=Depends(admin)):
@@ -457,7 +512,8 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.post("/api/authoring/codex")
     def codex_draft(body: CodexRequest, background: BackgroundTasks, current=Depends(admin)):
-        generation_prompt, documents = sources.reference_context(body.prompt, body.document_ids, current)
+        prompt, findings = sources.sanitize(body.prompt)
+        generation_prompt, documents = sources.reference_context(prompt, body.document_ids, current)
         state = authoring.status()
         if not state["enabled"] or not state["installed"]:
             raise HTTPException(
@@ -472,8 +528,9 @@ def install(app, user, admin, resource, scenario, draft_model):
             raise HTTPException(409, "A Codex draft is already being generated")
         try:
             rid = store.create(
-                "authoring_job", current["id"], dict(status="running", prompt=body.prompt,
-                                                    generation_prompt=generation_prompt, documents=documents)
+                "authoring_job", current["id"], dict(status="running", prompt=prompt, engine="codex", input_privacy=findings,
+                                                    generation_prompt=generation_prompt, documents=documents,
+                                                    security_log=scenario_policy.input_log(findings, documents))
             )
             background.add_task(authoring.build_job, rid, draft_model)
         except Exception:
@@ -514,7 +571,8 @@ def install(app, user, admin, resource, scenario, draft_model):
     @app.post("/api/authoring/openai")
     def api_draft(body: CodexRequest, background: BackgroundTasks, current=Depends(admin)):
         from . import openai_authoring
-        generation_prompt, documents = sources.reference_context(body.prompt, body.document_ids, current)
+        prompt, findings = sources.sanitize(body.prompt)
+        generation_prompt, documents = sources.reference_context(prompt, body.document_ids, current)
         state = openai_authoring.status()
         if not state["ready"]:
             raise HTTPException(503, state["reason"])
@@ -522,8 +580,9 @@ def install(app, user, admin, resource, scenario, draft_model):
             raise HTTPException(409, "A scenario draft is already being generated")
         try:
             rid = store.create("authoring_job", current["id"], dict(
-                status="running", prompt=body.prompt, engine="openai_api", model=state["model"],
+                status="running", prompt=prompt, input_privacy=findings, engine="openai_api", model=state["model"],
                 generation_prompt=generation_prompt, documents=documents,
+                security_log=scenario_policy.input_log(findings, documents),
             ))
             background.add_task(authoring.build_job, rid, draft_model)
         except Exception:

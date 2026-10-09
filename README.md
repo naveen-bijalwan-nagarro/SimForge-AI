@@ -1,12 +1,12 @@
 # SimForge AI — Scenario Lab
 
-A CPU-first mock-data training environment: **Admin / Trainer creates and publishes; Learner investigates, acts and explains the outcome.**
+A CPU-first mock-data training environment: **Admin / Trainer creates and publishes; Learner investigates, acts and reviews objective learning evidence.**
 
 Branch: **hackathon/simforge-scenario-lab**. Exactly two application roles. One authoring page. FastAPI + React/npm + SQLite. No Docker, GPU or external database is needed for the core simulation. Optional browser WebGL views are separate from the CPU simulator.
 
 ## The simple flow
 
-1. **Admin / Trainer → Scenario Lab:** choose Codex CLI, OpenAI API or an offline template. Describe the learning mission, systems and hidden incident; create the draft.
+1. **Admin / Trainer → Scenario Lab:** choose Codex CLI, OpenAI API or manual JSON. Describe the learning mission, systems and hidden incident; create the draft.
 2. **Check and publish, on the same page:** inspect source, author, version, mission, workflow and validation results. Failed checks block publication. Publish to notify learners.
 3. **Learner:** open the notification, understand the mission, generate linked datasets and enter the simulation.
 4. Investigate observed records and evidence, diagnose the fault, choose a response and observe its cost, delay and consequences.
@@ -15,7 +15,21 @@ Branch: **hackathon/simforge-scenario-lab**. Exactly two application roles. One 
 
 There are **no separate SOP factory, From an SOP, Advanced builder or Codex sandbox pages** in this edition. Their older backend engines remain compatibility/internal components, not extra demo steps. ML exercises appear within Scenario library and retain their distinct investigation/scoring engine.
 
-Use [the four-minute presentation script](docs/HACKATHON_DEMO.md). The default Supplier disruption template gives a coherent business exercise instead of a tour of every feature.
+Use [the four-minute presentation script](docs/HACKATHON_DEMO.md). Scenario Lab starts with a blank brief and a domain-neutral editable workflow. Generated definitions automatically replace the editor contents.
+
+### Single hackathon demo
+
+In **Scenario Lab**, paste the [FactoryPulse admin prompt](samples/sample1/admin_prompt.txt) and upload the [operations brief](samples/sample1/FactoryPulse_Operations_Brief.docx) and [sensor charts](samples/sample1/FactoryPulse_Sensor_Charts.pdf). The [synthetic privacy examples](samples/sample1/FactoryPulse_Privacy_Examples.docx) are optional for demonstrating PII screening; inspect their extracted preview before generation. These four files are an Admin / Trainer upload packet, not a built-in scenario. Generation, review and publication remain explicit actions. Follow the [four-minute recording plan](docs/HACKATHON_DEMO.md).
+
+**Learning journey:** mission and success criteria → three-question starting check → evidence, diagnosis and response → outcome and three-question post-check. Four score cards stay above the simulator: starting knowledge, post-check knowledge, objective learning score and knowledge change. No free-text answer or manual grading is required; Admin / Trainer assigns and observes rather than scoring answers.
+
+The **100-point practice score** is calculated on the server: post-check **50**, correct incident diagnosis before debrief **25**, logged investigation after incident onset and before response **15**, targeted repair with time to take effect **10**. Knowledge change is the actual before/after percentage-point difference, not this composite score. Missing baseline is unavailable, not zero; zero and negative change remain visible. Answer keys are only returned after the post-check is submitted. Questions adapt to published workflow labels without quoting the hidden cause. This is a shared operational-reasoning practice check, not a validated domain exam or certification; measure transfer and retention later on an unseen exercise.
+
+The learner's primary tabs are **Operations**, **Evidence**, **Diagnose & act**, and **Learning review**. Additional data, 3D, timeline and council views are grouped under **Data & visual tools**. Agent population and its dedicated Mesa/deck.gl code and dependencies have been removed. Synthetic work-item volume remains part of dataset generation.
+
+If the UI reports that the running backend is out of date, stop this project's server and restart with `start.cmd` or `scripts/start.ps1`, then refresh the browser. Rebuilding React alone does not reload Python routes. `/api/health` reports `api_contract: scenario-lab-objective-v3` for this authoring version. Use `scripts/start.ps1 -Dev` or `-Reload` during local iteration.
+
+The same versioned [system prompt](config/scenario_authoring_system.txt) guides both providers to create a compact 5–7-node definition. Python generates linked data and consequences; learner runs require no model or API key. Smaller models still need a supported structured-output interface, account access and human review; generation speed/quality are not guaranteed. Use **Edit and revalidate** to repair a checked draft while preserving provenance. Re-entering the learner library refreshes publications, and notifications fetch the current scenario when opened.
 
 ## Quick start — Windows
 
@@ -59,7 +73,7 @@ Vite proxies /api to the backend. For a single-server build use npm run build, t
 |---|---|---|
 | Codex CLI | Installed, signed-in CLI; enabled authoring; available plan quota/network | Produces a constrained JSON scenario definition in read-only mode |
 | OpenAI API | An API key and accessible structured-output model; network | Calls the Responses API from Python; no CLI installation required |
-| Offline template | Nothing external after dependency installation | Saves a manually editable, deterministic template as a checked draft |
+| Manual scenario | Nothing external after dependency installation | Saves a manually editable, deterministic template as a checked draft |
 
 **Codex is always the primary/default on opening Scenario Lab.** If unavailable or a draft fails, the admin can choose **Use OpenAI API backup**. Switching providers alone sends no prompt; an explicit **Generate draft with OpenAI API** action is required. There is no automatic failover, silent API retry or hidden API charge. **Return to primary Codex** switches back.
 
@@ -71,11 +85,15 @@ All three converge on the same validation/publication queue. Sources are recorde
 
 ### Multiple scenario documents and voice dictation
 
-In **Scenario Lab → Upload scenario documents**, select multiple PDF, DOCX, TXT or Markdown files in the same picker. Limits: 8 files per batch/selected draft, 2 MiB per file and 8 MiB per batch. PDFs must have selectable text (up to 80 pages); scanned PDFs need OCR outside the app. Encrypted, malformed and macro/legacy DOC files are rejected. DOCX extraction reads the document text without executing macros or following links. No extra paid tool, GPU or OCR service is required.
+In **Scenario Lab → Upload scenario documents**, select multiple PDF, DOCX, TXT, Markdown, CSV, JSON, PNG, JPEG or WebP files in the same picker. Limits: 8 files per batch/selected draft, 2 MiB per file and 8 MiB per batch. PDFs must have selectable text (up to 80 pages); scanned PDFs need OCR outside the app. Images need an administrator-reviewed description of at least 30 characters and at most 8 million pixels. Only that screened description reaches the model; image pixels and metadata are discarded after local validation. No automatic OCR, visual interpretation or visual PII detection is claimed. Encrypted, malformed and macro/legacy DOC files are rejected. DOCX extraction reads text without executing macros or following links.
 
 Extraction runs locally in time-limited Python subprocesses. Preview each document, inspect warnings and deselect references you do not want included. Common PII patterns are redacted before storage, but detection is incomplete: upload only authorized, non-sensitive/synthetic material. Only bounded extracted text, a file hash and metadata are stored in SQLite; original files/audio are not retained. Uploaded text is untrusted reference data, not instructions or executable code. It does not become a general-purpose knowledge base or train a model.
 
-An explicit Codex/API **Generate draft** sends only the selected text excerpts with your learning-goal description. The 24,000-character reference budget is shared fairly between selected documents; extraction itself keeps up to 24,000 characters per file. The draft/publication records source names, hashes and excerpt status; this provenance accompanies the published scenario. Full documents are not guaranteed to fit; review the generated workflow against your sources. Offline templates do not automatically interpret uploaded references. Extracted source content is private to the uploading administrator; published provenance is visible with the exercise.
+**System prompt and safety rules** shows the shared, versioned server prompt used by both authoring engines. Learners run CPU simulations without inference. The **Security review** log shows local brief/reference scans before provider access, output screening, instruction-override checks and explicit administrator publication approval. Only entity types, counts, timestamps and reference IDs are logged, not matched values. Revisions retain the input screening provenance. Publication repeats privacy/governance checks before committing the scenario and notifying learners.
+
+**Preview privacy checks** screens the typed brief locally before generation. Generation automatically runs the visible preflight, and the provider endpoint independently screens its input again. The sanitized preview does not overwrite the admin's typed brief. Recognizers cover common contact/account patterns, Indian PAN, Aadhaar-shaped identifiers and common secret forms; findings contain counts and types, never original matches. They do not cover every identity or multilingual case. Generated scenario content is checked for known instruction overrides before publication. These controls complement admin review; they do not establish complete anonymization or prompt-injection immunity.
+
+An explicit Codex/API **Generate draft** sends only the selected text excerpts with your learning-goal description. The 24,000-character reference budget is shared fairly between selected documents; extraction itself keeps up to 24,000 characters per file. The draft/publication records source names, hashes and excerpt status; this provenance accompanies the published scenario. Full documents are not guaranteed to fit; review the generated workflow against your sources. Manual JSON does not interpret uploaded references. Extracted source content is private to the uploading administrator; published provenance is visible with the exercise.
 
 **Write with your voice** dictates into the editable Scenario description. Choose English (India/US) or Hindi, acknowledge browser speech processing, Start voice dictation, then Stop and review/edit before generating. Voice never publishes scenarios or invokes model calls automatically. Browser support varies and microphone access normally requires HTTPS or localhost. The browser may use a remote speech service; this is **not guaranteed offline** and language support depends on the browser. SimForge has no paid transcription dependency and stores no audio. Typing remains available if unsupported/permission denied. See [browser SpeechRecognition limitations](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
 
@@ -151,7 +169,7 @@ Legacy factory/sandbox/designer subpage bookmarks resolve to the single Scenario
 
 ## Learner experience and impact
 
-Main views are World map/mock application, Live datasets, Evidence locker, Diagnosis and debrief. Optional 3D, population, agent council, charts and graph tools remain available. Agents recommend; humans commit. The learner's simulation clock is server-anchored and survives closing the browser.
+Main views are Operations/mock application, Evidence, Diagnose & act and Learning review. Optional datasets, 3D, timeline, agent council, charts and graph tools remain available. Agents recommend; humans commit. The learner's simulation clock is server-anchored and survives closing the browser.
 
 The baseline comparison, synthetic costs and scoring are **illustrative training outcomes**, not proven customer savings or a certified digital twin. Validate with a pilot: diagnosis time, assessment improvement, trainer preparation minutes and user feedback. Do not claim pilot evidence before collecting it.
 

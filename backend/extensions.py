@@ -18,7 +18,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from . import catalog, codex_sandbox, connections, datasets, evidence, experience, packs, population, store, vision
+from . import catalog, codex_sandbox, connections, datasets, evidence, experience, packs, store, vision
 from .engine import agent_workflow, commander_workflow, roles_in, unnecessary_actions
 from .mllab import catalog as ml_catalog
 from .mllab import lab as ml
@@ -115,12 +115,6 @@ def install(app, user, admin, resource, scenario):
         store.audit(current["id"], "commander.propose", rid)
         return dict(specialists=specialists, commander=commander_workflow(p["spec"], result, specialists, p["decisions"]))
 
-    @app.get("/api/runs/{rid}/population")
-    def run_population(rid: str, current=Depends(user)):
-        row, p, result, _ = run_state(rid, current)
-        data = population.for_run(p["spec"], p["seed"], p["population"], p["tick"], p["decisions"])
-        return data or dict(kind=None, message="This world has no agent-based population model.")
-
     def diagnosis_options(rid, p):
         causes = [p["spec"]["incident"]["cause"]] + list(p["spec"].get("decoys", []))[:4]
         random.Random(rid).shuffle(causes)
@@ -141,6 +135,8 @@ def install(app, user, admin, resource, scenario):
         if body.root_node not in {n["id"] for n in options["nodes"]} or body.cause not in options["causes"]:
             raise HTTPException(400, "Choose one of the listed systems and explanations")
         main.clock_tick(row)
+        if p["tick"] >= p["horizon"]:
+            raise HTTPException(409, "Diagnosis is closed after completion; use a fresh exercise to practise")
         p["diagnosis"] = dict(root_node=body.root_node, cause=body.cause, tick=p["tick"])
         main.save_run(row, current, "run.diagnosis")
         return main.run_view(store.get(rid))

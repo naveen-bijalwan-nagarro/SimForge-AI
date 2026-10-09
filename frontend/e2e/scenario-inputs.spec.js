@@ -78,13 +78,23 @@ test("multiple PDFs feed only selected references; archive is reversible and lea
       ),
     },
   ]);
-  await expect(sources).toContainText("3 documents extracted locally");
+  await expect(sources).toContainText("3 documents extracted locally", {
+    timeout: 30000,
+  });
+  await sources
+    .getByText("Review reference documents (3 selected)", { exact: true })
+    .click();
   await sources
     .getByText("Preview extracted text: dispatch.pdf", { exact: true })
     .first()
     .click();
   await expect(sources).toContainText("Dispatch confirmations are checked");
   await sources.getByLabel("notes.md", { exact: true }).first().uncheck();
+  await page
+    .getByLabel("Scenario description")
+    .fill(
+      "Create a supplier disruption scenario with synthetic workflow records and measurable recovery.",
+    );
   let payload;
   await page.route("**/api/authoring/codex", (route) => {
     payload = route.request().postDataJSON();
@@ -102,6 +112,14 @@ test("multiple PDFs feed only selected references; archive is reversible and lea
   expect(payload.document_ids).toHaveLength(2);
   expect(payload.prompt).toContain("supplier disruption");
   await page.getByLabel("Authoring engine").selectOption("manual");
+  const title = `PDF training run-${Date.now().toString(36)}`;
+  const definition = JSON.parse(
+    await page.getByLabel("Scenario definition JSON").inputValue(),
+  );
+  definition.title = title;
+  await page
+    .getByLabel("Scenario definition JSON")
+    .fill(JSON.stringify(definition));
   await page
     .getByRole("button", { name: "Validate & save draft", exact: true })
     .click();
@@ -110,12 +128,7 @@ test("multiple PDFs feed only selected references; archive is reversible and lea
   });
   const draft = queue
     .locator(".draft-review")
-    .filter({
-      has: page.getByRole("button", {
-        name: "Publish & notify learners",
-        exact: true,
-      }),
-    })
+    .filter({ hasText: title })
     .first();
   await draft
     .getByRole("button", { name: "Publish & notify learners", exact: true })
@@ -216,6 +229,7 @@ test("voice dictation appends reviewed text once, stops, handles permission deni
   const voice = page.getByRole("region", {
     name: "Voice dictation controls",
   });
+  await page.getByText("Voice input (optional)", { exact: true }).click();
   await page.getByLabel("Scenario description").fill("");
   await expect(
     voice.getByRole("button", { name: "Start voice dictation" }),
@@ -275,6 +289,7 @@ test("unsupported voice preserves typing and multi-document upload", async ({
   const voice = page.getByRole("region", {
     name: "Voice dictation controls",
   });
+  await page.getByText("Voice input (optional)", { exact: true }).click();
   await expect(voice).toContainText("not supported in this browser");
   await page
     .getByLabel("Scenario description")
