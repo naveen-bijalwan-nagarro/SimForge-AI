@@ -69,6 +69,24 @@ All three converge on the same validation/publication queue. Sources are recorde
 
 **API connection:** select OpenAI API. Enter the key in the masked admin-only input, choose a model and Save API connection. The input clears after submission. Saving does not make a generation request or prove model access; Generate draft with OpenAI API verifies access and may incur API charges. The default model ID is gpt-4.1-mini; availability is subject to your API project.
 
+### Multiple scenario documents and voice dictation
+
+In **Scenario Lab → Upload scenario documents**, select multiple PDF, DOCX, TXT or Markdown files in the same picker. Limits: 8 files per batch/selected draft, 2 MiB per file and 8 MiB per batch. PDFs must have selectable text (up to 80 pages); scanned PDFs need OCR outside the app. Encrypted, malformed and macro/legacy DOC files are rejected. DOCX extraction reads the document text without executing macros or following links. No extra paid tool, GPU or OCR service is required.
+
+Extraction runs locally in time-limited Python subprocesses. Preview each document, inspect warnings and deselect references you do not want included. Common PII patterns are redacted before storage, but detection is incomplete: upload only authorized, non-sensitive/synthetic material. Only bounded extracted text, a file hash and metadata are stored in SQLite; original files/audio are not retained. Uploaded text is untrusted reference data, not instructions or executable code. It does not become a general-purpose knowledge base or train a model.
+
+An explicit Codex/API **Generate draft** sends only the selected text excerpts with your learning-goal description. The 24,000-character reference budget is shared fairly between selected documents; extraction itself keeps up to 24,000 characters per file. The draft/publication records source names, hashes and excerpt status; this provenance accompanies the published scenario. Full documents are not guaranteed to fit; review the generated workflow against your sources. Offline templates do not automatically interpret uploaded references. Extracted source content is private to the uploading administrator; published provenance is visible with the exercise.
+
+**Write with your voice** dictates into the editable Scenario description. Choose English (India/US) or Hindi, acknowledge browser speech processing, Start voice dictation, then Stop and review/edit before generating. Voice never publishes scenarios or invokes model calls automatically. Browser support varies and microphone access normally requires HTTPS or localhost. The browser may use a remote speech service; this is **not guaranteed offline** and language support depends on the browser. SimForge has no paid transcription dependency and stores no audio. Typing remains available if unsupported/permission denied. See [browser SpeechRecognition limitations](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
+
+### Fresh publication queue — recoverable archive
+
+The upload boundary follows [OpenAI's guidance on untrusted input, structured outputs and human review](https://developers.openai.com/api/docs/guides/agent-builder-safety); these controls reduce risk but do not guarantee prompt-injection immunity.
+
+Open **Fresh demo: archive previous custom scenarios** in Scenario Lab. Inspect the exact preview and type **ARCHIVE** to archive custom publications, drafts and completed/failed authoring history. Generation still running blocks cleanup; a changed queue requires a new preview. The active publication queue and custom library are cleared, and old related notifications/assignments are hidden. Built-in exercises, uploaded references, learner runs and datasets are not removed. Learners can reopen frozen prepared environments and existing runs even after archival. **Restore archive** recovers the queue/publications; this is not permanent deletion or a factory reset. Retention of sources/history means archival is not a privacy erasure request.
+
+Before production maintenance, use the SQLite backup script and protect backups as carefully as the database. See [deployment](docs/DEPLOYMENT.md). The current demo cleanup is recorded in [verification](docs/VALIDATION.md).
+
 ### API credential safety
 
 - The browser submits credentials to **your backend**, not directly to OpenAI. The application does not put keys in browser storage or return them in settings responses.

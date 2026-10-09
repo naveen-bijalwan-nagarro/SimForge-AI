@@ -1,5 +1,18 @@
 # Verification record
 
+## Multi-document Scenario Lab, voice controls and fresh queue — 9 October 2026
+
+- Full backend suite: **304 passed** (16 new upload/lifecycle regressions); the same 42 existing generator deprecation warnings are non-fatal. Ruff, dependency checks and React production build passed.
+- Five Edge browser tests passed against an isolated SQLite directory: two-role publishing/assignment/observation, live mock-app records, multiple PDF uploads and previews, selecting only intended source IDs, confirmed archive/restore, retained learner preparations, voice transcript append/deduplication, stop/permission error/navigation cleanup, and unsupported-browser typing fallback. Provider generation is mocked; **no paid inference or microphone audio was requested**. A real physical-microphone session and browser speech-service availability were not tested.
+- Five additional existing browser regressions passed for Codex-primary/API-backup, administrator connection/device-code/cancel/model/sign-out controls, desktop/mobile logout and ML discovery. The live-Codex inference test was skipped. Upload/cleanup screenshots were visually inspected; checkbox layout was adjusted to retain inline document labels.
+- Sources: PDF/DOCX/UTF-8 TXT/MD, bounded file/batch/body/text limits, private owner scope, local timed subprocesses, common PII redaction, malformed/encrypted/scanned PDFs, DOCX entity/expansion rejection, timeout failure and explicit truncation warnings. Both Codex and API drafting receive selected untrusted excerpts and retain hashes/provenance; schema validation and manual publication remain mandatory. This is not exhaustive parser security certification, OCR or a complete PII detector.
+- Reversible archival is versioned against its preview and blocked during active generation. Archived draft publication is denied. Built-in catalogue, frozen runs/environments and all dataset records survive; archived notifications/assignments are hidden and return on restore.
+- **Normal local demo data was cleaned:** 2 custom publications and 3 draft records archived in batch `e6c1bcf49e1fab3f71dbe777`. Active custom publication/draft/job counts are now zero. The 30 runs, 17 preparations, 8 datasets, assignment and SOP records were unchanged. Originals remain recoverable using Restore archive in Scenario Lab. No resources were permanently deleted.
+- Before cleanup, a consistent SQLite backup was created at `data/secrets/backups/simforge-before-fresh-demo-20261009-124722.sqlite3` (16,986,112 bytes), excluded from Git and web serving. Its Windows ACL was verified to permit only the current account and SYSTEM. Protect this backup; it contains application data. The separate API secret file was not read, copied into Git or modified.
+- An initial full run had two pre-existing export failures due to the Windows sandbox temporary-directory ACL; rerunning with a workspace-local runtime temp directory passed. Early browser runs exposed an ambiguous accessibility label and test races (login/duplicate previews); the label and test synchronization were corrected before the successful run.
+
+See [document uploads, dictation and recovery](../README.md#multiple-scenario-documents-and-voice-dictation). The current branch remains `hackathon/simforge-scenario-lab`.
+
 ## Codex-primary / private API-backup follow-up — 9 October 2026
 
 - Full backend regression suite: **288 passed**, including 22 API/two-role/config tests. The 42 existing generator deprecation warnings remain non-fatal.

@@ -45,6 +45,7 @@ export function EChart({ option, height = 260, label = "Chart" }) {
     />
   );
 }
+
 export const lineOption = (xs, series, { yName = "", markX } = {}) => ({
   legend: { top: 0, type: "scroll" },
   xAxis: { type: "category", data: xs, boundaryGap: false },
@@ -130,3 +131,4 @@ export function CyGraph({ nodes, edges, height = 380, onSelect, layout = "dagre"
   }, [data, layout, rankDir]);
   return <div ref={ref} className="cy-graph" style={{ height }} role="img" aria-label={label} />;
 }
+

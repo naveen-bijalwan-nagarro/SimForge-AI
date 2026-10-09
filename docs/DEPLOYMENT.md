@@ -4,6 +4,8 @@ This deployment pattern works on a Linux VM with persistent storage. AWS EC2 or 
 
 ## 1. Prepare the host
 
+Scenario Lab uploads need no extra service: PDF/DOCX/text extraction uses the existing Python runtime and isolated 15-second subprocesses. Originals are not retained. Keep SQLite and backups private because extracted references and saved runs may contain business information. Configure the reverse proxy to permit up to 12 MB for `/api/scenario-documents` (base64 JSON overhead); application limits remain 2 MiB per file, 8 MiB per batch and 8 files. Other write endpoints keep their 1 MB limit. Do not expose `data/` or backup paths as web assets. Browser voice dictation needs supported browser/microphone permissions and normally HTTPS; it may use the browser provider's network speech service. Typing works without it.
+
 Use a supported Linux image with Python 3.12+, `venv`, Node.js 22+ and npm. Install a TLS proxy such as Caddy using its official installation instructions. Package names differ by Linux distribution.
 
 Copy application source to `/opt/simforge/SimForge-AI`. Exclude `.venv`, `node_modules`, local `data`, `artifacts` and `.env` secrets. Keep `backend/builtin/training_catalog.yaml` and `backend/builtin/training_generator.py`: these contain the preserved training catalogue and generator. No `legacy/` directory is required. Keep the bundled scenario packs, `codex_sandbox/` templates, policies and sample SOPs as well.

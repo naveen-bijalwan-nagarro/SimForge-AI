@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, SecretStr
 
 from . import authoring, catalog, drafts as draft_store, experience, labs, packs, store
+from . import scenario_lifecycle as lifecycle, scenario_sources as sources
 
 
 def checks_for(body):
@@ -51,9 +52,13 @@ def publish_spec(spec, checks, current, draft_row=None):
         draft_id=draft_row["id"] if draft_row else None,
         draft_author=draft_row["owner"] if draft_row else current["id"],
         source=draft_row["payload"]["source"] if draft_row else "manual",
+        documents=draft_row["payload"].get("documents", []) if draft_row else [],
     )
     with store.connection() as db:
         if draft_row:
+            latest = db.execute("SELECT payload FROM resources WHERE id=?", (draft_row["id"],)).fetchone()
+            if not latest or json.loads(latest[0]).get("archived"):
+                raise HTTPException(409, "Archived draft cannot be published")
             payload = dict(
                 draft_row["payload"], status="published", scenario_key=spec["key"], checks=checks
             )
@@ -103,6 +108,12 @@ class Assignment(BaseModel):
 
 class CodexRequest(BaseModel):
     prompt: str = Field(min_length=30, max_length=6000)
+    document_ids: list[str] = Field(default_factory=list, max_length=8)
+
+
+class Cleanup(BaseModel):
+    token: str = Field(min_length=64, max_length=64)
+    confirmation: Literal["ARCHIVE"]
 
 
 class ApiConnection(BaseModel):
@@ -278,13 +289,14 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.get("/api/notifications")
     def notifications(current=Depends(user)):
+        retired = lifecycle.retired_keys()
         with store.connection() as db:
             return [
                 dict(r)
                 for r in db.execute(
                     "SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 100",
                     (current["id"],),
-                )
+                ) if r["scenario_key"] not in retired
             ]
 
     @app.post("/api/notifications/{nid}/read")
@@ -327,15 +339,38 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.get("/api/assignments")
     def assignments(current=Depends(user)):
+        retired = lifecycle.retired_keys()
         return [
             dict(id=r["id"], **r["payload"])
             for r in store.list_resources("assignment")
-            if current["role"] == "admin" or current["id"] in r["payload"]["learners"]
+            if r["payload"]["scenario_key"] not in retired and
+            (current["role"] == "admin" or current["id"] in r["payload"]["learners"])
         ]
 
     @app.get("/api/scenario-drafts")
     def drafts(current=Depends(admin)):
-        return [draft_store.view(r) for r in store.list_resources("scenario_draft")]
+        return [draft_store.view(r) for r in store.list_active_resources("scenario_draft")]
+
+    @app.post("/api/scenario-documents")
+    def upload_documents(body: sources.Upload, current=Depends(admin)):
+        return sources.upload(body, current["id"])
+
+    @app.get("/api/scenario-documents")
+    def documents(current=Depends(admin)):
+        return [dict(id=r["id"], **r["payload"]) for r in store.list_resources("scenario_document", current)
+                if r["owner"] == current["id"]]
+
+    @app.get("/api/scenario-cleanup")
+    def cleanup_plan(current=Depends(admin)):
+        return lifecycle.plan()
+
+    @app.post("/api/scenario-cleanup")
+    def cleanup(body: Cleanup, current=Depends(admin)):
+        return lifecycle.archive(body.token, current["id"])
+
+    @app.post("/api/scenario-cleanup/{batch}/restore")
+    def restore(batch: str, current=Depends(admin)):
+        return lifecycle.restore(batch, current["id"])
 
     @app.post("/api/scenario-drafts")
     def create_draft(body: draft_model, current=Depends(admin)):
@@ -346,6 +381,8 @@ def install(app, user, admin, resource, scenario, draft_model):
     @app.post("/api/scenario-drafts/{rid}/publish")
     def publish(rid: str, current=Depends(admin)):
         row = resource(rid, "scenario_draft", current)
+        if row["payload"].get("archived"):
+            raise HTTPException(409, "Archived draft cannot be published")
         if row["payload"]["status"] == "published":
             raise HTTPException(409, "This draft is already published")
         if row["payload"].get("pack"):
@@ -420,6 +457,7 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.post("/api/authoring/codex")
     def codex_draft(body: CodexRequest, background: BackgroundTasks, current=Depends(admin)):
+        generation_prompt, documents = sources.reference_context(body.prompt, body.document_ids, current)
         state = authoring.status()
         if not state["enabled"] or not state["installed"]:
             raise HTTPException(
@@ -434,7 +472,8 @@ def install(app, user, admin, resource, scenario, draft_model):
             raise HTTPException(409, "A Codex draft is already being generated")
         try:
             rid = store.create(
-                "authoring_job", current["id"], dict(status="running", prompt=body.prompt)
+                "authoring_job", current["id"], dict(status="running", prompt=body.prompt,
+                                                    generation_prompt=generation_prompt, documents=documents)
             )
             background.add_task(authoring.build_job, rid, draft_model)
         except Exception:
@@ -445,7 +484,8 @@ def install(app, user, admin, resource, scenario, draft_model):
 
     @app.get("/api/authoring/jobs")
     def authoring_jobs(current=Depends(admin)):
-        return [dict(id=row["id"], **row["payload"]) for row in store.list_resources("authoring_job")]
+        return [dict(id=row["id"], **{k: v for k, v in row["payload"].items() if k != "generation_prompt"})
+                for row in store.list_active_resources("authoring_job")]
 
     @app.get("/api/authoring/openai")
     def api_status(current=Depends(admin)):
@@ -474,6 +514,7 @@ def install(app, user, admin, resource, scenario, draft_model):
     @app.post("/api/authoring/openai")
     def api_draft(body: CodexRequest, background: BackgroundTasks, current=Depends(admin)):
         from . import openai_authoring
+        generation_prompt, documents = sources.reference_context(body.prompt, body.document_ids, current)
         state = openai_authoring.status()
         if not state["ready"]:
             raise HTTPException(503, state["reason"])
@@ -482,6 +523,7 @@ def install(app, user, admin, resource, scenario, draft_model):
         try:
             rid = store.create("authoring_job", current["id"], dict(
                 status="running", prompt=body.prompt, engine="openai_api", model=state["model"],
+                generation_prompt=generation_prompt, documents=documents,
             ))
             background.add_task(authoring.build_job, rid, draft_model)
         except Exception:
@@ -493,4 +535,4 @@ def install(app, user, admin, resource, scenario, draft_model):
     @app.get("/api/authoring/jobs/{rid}")
     def job(rid: str, current=Depends(admin)):
         row = resource(rid, "authoring_job", current)
-        return dict(id=rid, **row["payload"])
+        return dict(id=rid, **{k: v for k, v in row["payload"].items() if k != "generation_prompt"})

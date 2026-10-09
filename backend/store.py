@@ -164,6 +164,17 @@ def update(rid, payload, version):
         return bool(changed)
 
 
+def list_active_resources(kind, user=None):
+    # Filter before LIMIT so archived history cannot push fresh items out of the queue.
+    with connection() as db:
+        rows = db.execute(
+            "SELECT * FROM resources WHERE kind=? AND json_extract(payload,'$.archived') IS NULL "
+            "ORDER BY created DESC LIMIT 200", (kind,),
+        ).fetchall()
+        return [dict(r, payload=json.loads(r["payload"])) for r in rows
+                if user is None or user["role"] == "admin" or r["owner"] == user["id"]]
+
+
 def recover_interrupted_jobs():
     """Fail orphaned in-process jobs on single-worker startup, without replaying model calls.
 

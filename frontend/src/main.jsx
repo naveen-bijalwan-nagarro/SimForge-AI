@@ -751,7 +751,8 @@ function App() {
     await act(async () => {
       const prepared = await api("/preparations/" + encodeURIComponent(id));
       const all = await api("/scenarios");
-      const spec = all.find((s) => s.key === prepared.scenario_key);
+      const spec =
+        all.find((s) => s.key === prepared.scenario_key) || prepared.scenario;
       if (!spec) throw new Error("This scenario is no longer available");
       setSelected({ ...spec, prepared });
     });
@@ -1348,9 +1349,13 @@ function App() {
             <ScenarioStudio
               user={user}
               Graph={WorldGraph}
-              onPublished={async () => {
+              onPublished={async (published) => {
                 await loadHome();
-                setToast("Scenario published. Learners have been notified.");
+                setToast(
+                  published
+                    ? "Scenario published. Learners have been notified."
+                    : "Scenario library refreshed.",
+                );
               }}
             />
           )}

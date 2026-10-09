@@ -15,6 +15,8 @@ Use the supplier-disruption exercise: dispatch → receiving → inventory → p
 - In Scenario Lab, select Codex CLI and check the actual connection/model before the presentation.
 - Codex is always primary. For an unavailable CLI/sign-in/quota, explicitly choose Use OpenAI API backup and configure the key/model, or provision the private file in [README](../README.md#persistent-api-backup-configuration). Only the Generate action invokes the backup; no automatic retry or charge occurs when switching. This is API authoring, not Codex CLI activity.
 - Prepare a labelled fallback draft because real generation may exceed the presentation window. Do not present an offline template as live Codex generation.
+- Before the demo, use Fresh demo: archive previous custom scenarios, review the preview and type ARCHIVE. Old custom publications/drafts are hidden, not deleted; do not archive your labelled fallback until you no longer need it. Built-in templates and learner records remain.
+- Prepare two short synthetic text PDFs or DOCX guides (workflow and response policy). Upload both together, preview their text and select references. For optional voice input, test browser/microphone/language support beforehand; typing is the dependable fallback.
 - Use 60 work items, seed 2026 and a 30-minute simulated horizon. Playback at 3× advances simulated time; it is not a 30-minute wall-clock presentation.
 - Pause while explaining data. Keep optional 3D/ML tools out of the main demo.
 
@@ -25,6 +27,8 @@ Show Overview: “Staff need to practise real business decisions without touchin
 ## 0:30–1:20 — one Scenario Lab
 
 Select Scenario Lab. One page contains **1 · Create an exercise** and **2 · Check and publish**.
+
+Show the two uploaded references and their extracted previews. Optionally dictate one sentence, then stop and edit it. Upload/voice capture does not call Codex or publish anything; only Generate sends selected excerpts to the chosen engine. Keep this demonstration under 10 seconds by uploading before presenting.
 
 Use a prompt such as:
 

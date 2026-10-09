@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ScenarioCleanup } from "./ScenarioInputs";
 import { ArrowRight, ClipboardCheck } from "lucide-react";
 import { api } from "./client";
 import { AdminStudio, TrainingDesk } from "./Experience";
@@ -321,6 +322,19 @@ export function ScenarioReviews({ user, onPublished }) {
               Author: {draft.owner} · Version {draft.version} · {passed}/
               {draft.checks.length} scenario checks passed
             </p>
+            {draft.documents?.length > 0 && (
+              <details>
+                <summary>
+                  Reference provenance ({draft.documents.length} documents)
+                </summary>
+                {draft.documents.map((d) => (
+                  <p key={d.id}>
+                    {d.name} · SHA-256 {d.sha256.slice(0, 12)} ·{" "}
+                    {d.truncated ? "excerpted" : "complete extracted text"}
+                  </p>
+                ))}
+              </details>
+            )}
             <details>
               <summary>Inspect workflow and validation checks</summary>
               {draft.definition.nodes && (
@@ -368,6 +382,7 @@ export function ScenarioReviews({ user, onPublished }) {
 
 export function ScenarioStudio({ user, Graph, onPublished }) {
   const [revision, setRevision] = useState(0);
+  const [cleanupRevision, setCleanupRevision] = useState(0);
   return (
     <>
       <div className="page-heading">
@@ -382,12 +397,20 @@ export function ScenarioStudio({ user, Graph, onPublished }) {
         </div>
       </div>
       <AdminStudio
+        key={cleanupRevision}
         Graph={Graph}
         compact
         showReview={false}
         onDraftReady={() => setRevision((x) => x + 1)}
       />
       <ScenarioReviews key={revision} user={user} onPublished={onPublished} />
+      <ScenarioCleanup
+        onChanged={async () => {
+          setRevision((x) => x + 1);
+          setCleanupRevision((x) => x + 1);
+          await onPublished?.();
+        }}
+      />
     </>
   );
 }

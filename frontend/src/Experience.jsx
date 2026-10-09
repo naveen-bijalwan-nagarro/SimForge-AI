@@ -12,6 +12,7 @@ import {
 import { api } from "./client";
 import { CodexConnection } from "./CodexConnection";
 import { OpenAIConnection } from "./OpenAIConnection";
+import { ScenarioDocuments, VoiceDictation } from "./ScenarioInputs";
 
 export const exerciseTime = (minute) => {
   const seconds = Math.round((9 * 60 + Number(minute || 0)) * 60);
@@ -971,6 +972,7 @@ export function AdminStudio({
     [status, setStatus] = useState(null),
     [engine, setEngine] = useState("codex"),
     [apiStatus, setApiStatus] = useState(null),
+    [documentIds, setDocumentIds] = useState([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [prompt, setPrompt] = useState(
@@ -1094,16 +1096,28 @@ export function AdminStudio({
           </>
         )}
         {engine === "codex" && <p>{status?.safety}</p>}
+        <ScenarioDocuments
+          selected={documentIds}
+          onSelect={setDocumentIds}
+          disabled={busy || job?.status === "running"}
+        />
         {engine !== "manual" && (
           <>
             <label>
               Scenario description
               <textarea
                 rows="3"
+                maxLength={6000}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
               />
             </label>
+            <VoiceDictation
+              disabled={busy || job?.status === "running"}
+              onText={(words) =>
+                setPrompt((old) => (old + " " + words).trim().slice(0, 6000))
+              }
+            />
             <button
               className="primary"
               disabled={
@@ -1121,7 +1135,7 @@ export function AdminStudio({
                       engine === "openai_api"
                         ? "/authoring/openai"
                         : "/authoring/codex",
-                      { prompt },
+                      { prompt, document_ids: documentIds },
                     ),
                   ),
                 )
@@ -1132,10 +1146,10 @@ export function AdminStudio({
                 : "Generate draft with Codex"}
             </button>
             <p className="tiny">
-              Your description is sent to OpenAI through the selected server
-              connection. API requests use separate API billing; they are not
-              Codex CLI activity. Use synthetic, non-sensitive requirements
-              only.{" "}
+              Your description and selected reference excerpts are sent to
+              OpenAI through the selected server connection. API requests use
+              separate API billing; they are not Codex CLI activity. Use
+              synthetic, non-sensitive requirements only.{" "}
               {engine === "codex" &&
                 (status?.enabled
                   ? status.mode

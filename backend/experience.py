@@ -589,12 +589,15 @@ def prepare(spec, seed, population, horizon):
 
 
 def prepared_view(row):
+    from . import catalog
+
     p = row["payload"]
     return dict(
         id=row["id"],
         owner=row["owner"],
         title=p["spec"]["title"],
         scenario_key=p["original"]["key"],
+        scenario=catalog.public_scenario(p["original"]),
         seed=p["seed"],
         population=p["population"],
         horizon=p["horizon"],

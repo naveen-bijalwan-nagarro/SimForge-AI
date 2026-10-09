@@ -53,8 +53,18 @@ async def protect_requests(request, call_next):
             return Response("Invalid Content-Length", status_code=400)
         if length < 0:
             return Response("Invalid Content-Length", status_code=400)
-        if length > 1_000_000:
+        limit = 12_000_000 if request.url.path == "/api/scenario-documents" else 1_000_000
+        if length > limit:
             return Response("Request too large", status_code=413)
+        if request.url.path == "/api/scenario-documents":
+            # Enforce the real body limit even for chunked/no-Content-Length uploads.
+            chunks, total = [], 0
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > limit:
+                    return Response("Request too large", status_code=413)
+                chunks.append(chunk)
+            request._body = b"".join(chunks)
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
@@ -68,6 +78,8 @@ async def protect_requests(request, call_next):
 async def safe_validation(request: Request, exc: RequestValidationError):
     if request.url.path == "/api/authoring/openai/config":
         return JSONResponse(status_code=422, content={"detail": "Invalid API connection settings"})
+    if request.url.path == "/api/scenario-documents":
+        return JSONResponse(status_code=422, content={"detail": "Invalid upload: select 1–8 named documents, at most 2 MiB each."})
     from fastapi.exception_handlers import request_validation_exception_handler
     return await request_validation_exception_handler(request, exc)
 
@@ -93,7 +105,7 @@ def resource(rid, kind, current):
 
 
 def scenarios():
-    return catalog.all_scenarios([r["payload"] for r in store.list_resources("scenario")])
+    return catalog.all_scenarios([r["payload"] for r in store.list_active_resources("scenario")])
 
 
 def scenario(key):
