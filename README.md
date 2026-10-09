@@ -191,6 +191,7 @@ Tests cover two-role publication/notifications/observation, on-demand linked dat
 
 ## Code and supporting references
 
+- [Repository agent instructions](AGENTS.md) describe the working agreements; [agentic.md](agentic.md) gives prompt patterns and hackathon guidance. Reusable synthetic demo briefs live in [samples/scenarios](samples/scenarios/README.md); use [adding use cases](docs/ADDING_USE_CASES.md) for version-controlled YAML packs.
 - backend/main.py, studio.py, drafts.py: permissions, data preparation, runs, publication, notifications and provenance.
 - backend/authoring.py, openai_authoring.py: CLI and Responses API adapters sharing a checked draft/job pipeline.
 - frontend/src/Hackathon.jsx, Experience.jsx, OpenAIConnection.jsx: the single Scenario Lab, role guidance, data inspection and provider setup.
