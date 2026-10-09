@@ -29,34 +29,57 @@ export const genericScenario = {
   cause: "A synthetic routing fault holds work at the review handoff.",
 };
 
-export function SecurityLog({ events = [] }) {
+export function SecurityLog({ events = [], documents = [] }) {
   if (!events.length) return null;
+  const documentNames = new Map(
+    (documents || []).filter((document) => document?.id).map((document) => [
+      document.id,
+      document.name,
+    ]),
+  );
   return (
     <section className="security-log" aria-label="Security screening log">
       <h4>Security review</h4>
       <ol>
-        {events.map((event, index) => (
-          <li key={index}>
-            <strong>{event.stage}</strong> · {event.status}
-            {event.total > 0 && <> · {event.total} matches redacted</>}
-            <small>
-              {new Date(event.timestamp * 1000).toLocaleString()}
-              {event.actor && <> · Admin {event.actor}</>}
-              {event.document_id && (
-                <> · Reference {event.document_id.slice(0, 8)}</>
+        {events.map((event, index) => {
+          const screened = /\bscreened\b/i.test(event.stage || "");
+          const total = event.total || 0;
+          return (
+            <li key={index}>
+              <strong>{event.stage}</strong> · {event.status}
+              {screened && (
+                <>
+                  {" "}· {total > 0
+                    ? `${total} recognized match${total === 1 ? "" : "es"} redacted`
+                    : "no recognized matches"}
+                </>
               )}
-            </small>
-            {Object.entries(event.entities || {}).map(([type, count]) => (
-              <span className="badge" key={type}>
-                {type} → &lt;{type}&gt; × {count}
-              </span>
-            ))}
-          </li>
-        ))}
+              <small>
+                {Number.isFinite(event.timestamp) &&
+                  new Date(event.timestamp * 1000).toLocaleString()}
+                {event.actor && <> · Admin {event.actor}</>}
+                {event.document_id && (
+                  <>
+                    {" "}· Reference {documentNames.get(event.document_id) || event.document_id.slice(0, 8)}
+                  </>
+                )}
+                {screened && event.engine && <> · Detector: {event.engine}</>}
+              </small>
+              {screened &&
+                Object.entries(event.entities || {}).map(([type, count]) => (
+                  <span className="badge" key={type}>
+                    {type} → &lt;{type}&gt; × {count}
+                  </span>
+                ))}
+            </li>
+          );
+        })}
       </ol>
       <p className="tiny">
-        Local pattern screening; original matches are not logged. Review for
-        missed or indirect identifiers. This is not a compliance certification.
+        Local pattern screening covers extracted text, reviewed image
+        descriptions, the brief and generated text. Image pixels and scanned
+        pages are not checked. These receipts contain no matched values; review
+        for missed or indirect identifiers. Zero matches does not mean PII-free.
       </p>
     </section>
   );

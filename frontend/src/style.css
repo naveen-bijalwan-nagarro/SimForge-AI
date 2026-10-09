@@ -3644,6 +3644,92 @@ p.pass {
   margin-top: 6px;
   font-size: 18px;
 }
+.learner-report {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+.learner-report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.learner-report-head > div:first-child,
+.learner-report-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.learner-report-score {
+  font-size: 34px;
+  line-height: 1.15;
+  color: #26314d;
+}
+.learner-report-status {
+  align-items: flex-end;
+  color: var(--muted);
+  font-size: 13px;
+}
+.learner-report-criteria {
+  display: grid;
+  gap: 15px;
+  margin-top: 16px;
+}
+.learner-report-criterion-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  font-size: 13px;
+}
+.learner-report-criterion-label span:last-child {
+  color: var(--muted);
+  text-align: right;
+}
+.learner-report-criterion progress {
+  display: block;
+  width: 100%;
+  height: 10px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  accent-color: #258f83;
+  background: #edf0ef;
+}
+.learner-report-criterion progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #edf0ef;
+}
+.learner-report-criterion progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: #258f83;
+}
+.learner-report-criterion progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: #258f83;
+}
+.learner-report-unscored {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.learner-report-unscored > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.learner-report-unscored span {
+  color: var(--muted);
+}
 .learning-insights {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3684,6 +3770,17 @@ p.pass {
   }
   .learning-insights {
     grid-template-columns: 1fr;
+  }
+  .learner-report-unscored {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .learner-report-head {
+    flex-direction: column;
+  }
+  .learner-report-status {
+    align-items: flex-start;
   }
 }
 .learning-check summary {

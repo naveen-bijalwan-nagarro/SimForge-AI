@@ -1083,7 +1083,10 @@ export function AdminStudio({
             </button>
             {privacyPreview && (
               <>
-                <SecurityLog events={privacyPreview.security_log} />
+                <SecurityLog
+                  events={privacyPreview.security_log}
+                  documents={privacyPreview.documents}
+                />
                 <details>
                   <summary>Sanitized brief sent to the authoring model</summary>
                   <pre className="document-text">{privacyPreview.prompt}</pre>
@@ -1274,7 +1277,7 @@ export function AdminStudio({
                 </span>
               </div>
               <p>{d.definition.mission}</p>
-              <SecurityLog events={d.governance?.events} />
+              <SecurityLog events={d.governance?.events} documents={d.documents} />
               <div className="validation-checks">
                 {d.checks.map((c) => (
                   <span className={c.passed ? "pass" : "fail"} key={c.name}>

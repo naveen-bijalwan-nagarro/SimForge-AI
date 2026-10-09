@@ -252,9 +252,10 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
         MiB each, 8 MiB total.
       </p>
       <p className="tiny">
-        PII screening is partial: review each preview. Only extracted text or
-        reviewed image descriptions are kept. No OCR. Nothing reaches the model
-        until you generate; manual JSON does not read references.
+        Local pattern screening covers extracted text and reviewed image
+        descriptions, not image pixels or scanned PDF pages. Review each preview:
+        zero recognized matches does not mean PII-free. Nothing reaches the
+        model until you generate; manual JSON does not read references.
       </p>
       <label>
         Scenario documents (multiple files)
@@ -353,8 +354,21 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
               </label>
               <small>
                 {d.text.length.toLocaleString()} extracted characters ·{" "}
-                {d.redactions.total} detected PII matches redacted
+                {d.redactions
+                  ? d.redactions.total
+                    ? `${d.redactions.total} recognized match${d.redactions.total === 1 ? "" : "es"} redacted`
+                    : "no recognized matches"
+                  : "screening receipt unavailable"}{" "}
+                in {d.input_type === "image_description" ? "reviewed description" : "extracted text"}
               </small>
+              <small>
+                Detector: {d.redactions?.engine || "not recorded for this reference"}
+              </small>
+              {Object.entries(d.redactions?.entities || {}).map(([type, count]) => (
+                <span className="badge" key={type}>
+                  {type} → &lt;{type}&gt; × {count}
+                </span>
+              ))}
               {d.warnings.map((warning) => (
                 <p className="tiny" key={warning}>
                   {warning}

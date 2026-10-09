@@ -215,21 +215,61 @@ export function LearningCheck({
       {completed && state?.after && expanded && (
         <>
           <section
-            className="learning-breakdown"
-            aria-label="Objective score breakdown"
+            className="learning-breakdown learner-report"
+            aria-label="Learner practice report"
           >
+            <div className="learner-report-head">
+              <div>
+                <span className="eyebrow">LEARNER PRACTICE REPORT</span>
+                <strong className="learner-report-score">
+                  {state.learning_score != null
+                    ? state.learning_score + "/100"
+                    : "Pending"}
+                </strong>
+                <span>Practice performance</span>
+              </div>
+              <div className="learner-report-status">
+                <span className="badge">Practice results</span>
+                <span>Not certification</span>
+              </div>
+            </div>
             <h3>How your practice score was calculated</h3>
-            <div className="score-components">
-              {Object.entries(state.score_components || {}).map(
-                ([key, value]) => (
-                  <div key={key}>
-                    <span>{scoreLabels[key]}</span>
-                    <strong>
-                      {value}/{state.max_points[key]}
-                    </strong>
+            <div className="learner-report-criteria">
+              {Object.entries(state.score_components || {}).map(([key, value]) => {
+                const max = state.max_points?.[key] || 0;
+                const percent = max ? Math.round((value / max) * 100) : 0;
+                const label = scoreLabels[key] || key;
+                return (
+                  <div className="learner-report-criterion" key={key}>
+                    <div className="learner-report-criterion-label">
+                      <span>{label}</span>
+                      <span>
+                        {value}/{max} points · {percent}%
+                      </span>
+                    </div>
+                    <progress
+                      value={value}
+                      max={max || 1}
+                      aria-label={`${label}: ${value} of ${max} points`}
+                    />
                   </div>
-                ),
-              )}
+                );
+              })}
+            </div>
+            <p className="tiny">
+              Each percentage is the share of available points in that
+              criterion. These are brief knowledge and recorded-action checks,
+              not detailed skill ratings.
+            </p>
+            <div className="learner-report-unscored">
+              <div>
+                <strong>Trade-off reasoning</strong>
+                <span>Not separately scored. Review response cost and delay in your decision history.</span>
+              </div>
+              <div>
+                <strong>Knowledge transfer</strong>
+                <span>Not yet measured. Try a comparable unseen exercise and check retention later.</span>
+              </div>
             </div>
           </section>
           <div className="learning-insights">
@@ -246,7 +286,7 @@ export function LearningCheck({
               )}
             </section>
             <section>
-              <h3>Practise next</h3>
+              <h3>Coaching recommendation</h3>
               <ul>
                 {state.learning_journey.next_steps.map((x) => (
                   <li key={x}>{x}</li>

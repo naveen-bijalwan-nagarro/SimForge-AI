@@ -283,7 +283,10 @@ export function ScenarioReviews({ user, onPublished, onEdit }) {
                   : "Human review required before publication."}
               </p>
             )}
-            <SecurityLog events={draft.governance?.events} />
+            <SecurityLog
+              events={draft.governance?.events}
+              documents={draft.documents}
+            />
             {draft.documents?.length > 0 && (
               <details>
                 <summary>
