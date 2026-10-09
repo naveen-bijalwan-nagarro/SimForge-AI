@@ -2,14 +2,17 @@ CodexForge
 SimForge AI technical submission reference
 
 Primary code artifact: SimForge-AI-code.zip in this folder
-SHA-256: 217a32200f99b4aa7c312ed5d10edd39a15d3b940f7742b27df02f292f3446e3
-Source snapshot commit: c97c264c0cde2708083ba97036cec2224660f90b
+SHA-256: 4683efed3be7123277069665be7f3ae3834bd22beff523868d9debb4fb79e953
+Base commit: 4e5e29836b072d9f19aa8e045ca2a3e0d30c8db7
+The ZIP includes the current working-tree Live operations and Scenario Lab demo
+improvements plus the revised synthetic FactoryPulse packet. CODE_SNAPSHOT.txt
+inside the archive lists the changed source files.
 
 The code ZIP contains the FastAPI backend, React frontend, scenario packs,
 README, setup.cmd, start.cmd and the synthetic FactoryPulse input packet.
 It excludes .git, .venv, node_modules, frontend/dist, caches, local runtime
-data, secrets and submission materials. Unzip it and, on Windows, run
-PowerShell: .\setup.cmd followed by .\start.cmd, as described in README.md. The startup
+data, secrets and submission materials. Unzip it and, in Windows PowerShell,
+run .\setup.cmd followed by .\start.cmd as described in README.md. The startup
 script serves the built UI and API together at http://127.0.0.1:8000 by
 default. Local dependencies and generated UI assets are recreated on setup.
 

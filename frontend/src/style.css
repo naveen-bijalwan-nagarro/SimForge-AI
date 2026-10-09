@@ -456,6 +456,23 @@
 .live-operations .panel-heading p {
   max-width: 800px;
 }
+.live-view-switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  background: #f4f6fa;
+}
+.live-view-switch button {
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.live-view-switch button.active {
+  background: #20334c;
+  color: #fff;
+}
 .live-scene {
   background: radial-gradient(ellipse at top, #223453, #0f1c30);
   padding: 20px 24px 0;

@@ -1,83 +1,32 @@
-# SimForge AI — one Scenario Lab, two roles, four minutes
+# Four-minute FactoryPulse demonstration
 
-Use the [FactoryPulse admin prompt](../samples/sample1/admin_prompt.txt) with the [operations brief](../samples/sample1/FactoryPulse_Operations_Brief.docx) and [sensor charts](../samples/sample1/FactoryPulse_Sensor_Charts.pdf); the [synthetic privacy examples](../samples/sample1/FactoryPulse_Privacy_Examples.docx) are optional for screening. These four files form an Admin / Trainer upload packet for one machine-failure exercise. The timed route below covers the recording. Baseline → observed decisions → post-check → automatic score breakdown is implemented, not just a proposed pilot measure.
+This route shows one complete Admin / Trainer to Learner cycle. Use one newly generated FactoryPulse scenario and one learner run. The detailed spoken cue sheet for the team is in submission/RECORDING_GUIDE.md in the working repository.
 
-## Promise and boundaries
+## Prepare once
 
-We help staff move from passive slides or risky exploration of live tools to practising evidence-based decisions in a self-contained mock-data environment.
+- Install dependencies with .\setup.cmd, then stop the app. Open the recording with submission/CodexForge/Opening_Slide.png for 12 seconds. Then start the application with .\start.cmd and show the printed localhost address and loaded Overview.
+- Use separate Admin and Learner browser profiles. Hide terminal demo credentials, API keys and desktop notifications.
+- Check that the Codex CLI is signed in and ready. Scenario Lab's **Load FactoryPulse demo packet** button loads the short prompt, synthetic operations brief and chart PDF from samples/sample1. It creates references only; it does not generate or publish.
+- Rehearse generation and keep one validated, unpublished Codex draft as a clearly labelled live-demo fallback. Before publication, check source **codex**, visual style **service_app**, the six connected nodes, a hidden cause, passing checks and brief, complete learner Mission and Success fields. Edit and revalidate any overlong wording.
+- Do not use an old FactoryPulse run for the final demonstration: old runs retain their original 785-character mission and cut-off 500-character success text. Create a new publication and new learner environment from the revised packet.
 
-**Admin / Trainer** creates, checks and publishes. **Learner** runs the exercise and reviews the result. No third account, SOP factory page or advanced builder page is required.
+## Timed route
 
-Use the FactoryPulse exercise: sensors → machine → production → quality → shipments, with schedule → production. The environment is illustrative training, not an exact replica or validated physical twin. Synthetic delays and costs are not proven customer outcomes.
+| Time | Screen proof |
+| --- | --- |
+| 0:00-0:12 | Show the single opening image: safe practice, four-step path and planned pilot measures. |
+| 0:12-0:25 | PowerShell .\start.cmd, localhost Overview. |
+| 0:25-0:36 | Client need: safe practice without live systems; no measured pilot yet. |
+| 0:36-1:18 | Admin Scenario Lab: load packet, preview local screening, click **Generate draft with Codex**, show the real running job and its returned source/checks, then **Publish & notify learners**. |
+| 1:18-2:01 | Learner Notification: prepare linked records, enter simulation, complete the three-question starting check before playback. |
+| 2:01-2:48 | Operations Application: play to the incident, pause, compare Evidence, commit **Investigate source signals**, submit diagnosis, then commit **Repair the source**. |
+| 2:48-3:22 | Complete run, show same-workload no-action comparison, take the three-question post-check and show the practice report. |
+| 3:22-3:55 | Admin Assignments & results observation, security receipts, pilot boundaries and reuse. |
 
-## Prepare
+The simulator uses synthetic data and no learner-side model call. Knowledge change is the difference between starting and post-check percentages. The separate 100-point practice score includes post-check answers (50), correct diagnosis (25), timely investigation (15) and targeted repair (10). Merely opening Evidence does not earn investigation credit; commit the inspect action after incident onset and before a response.
 
-- Start the Python app with the built React UI; SQLite stores scenarios, data, runs and decisions.
-- Open two independent browser profiles/private contexts: admin and learner. Tabs in the same profile share sign-in.
-- In Scenario Lab, select Codex CLI and check the actual connection/model before the presentation.
-- Codex is always primary. For an unavailable CLI/sign-in/quota, explicitly choose Use OpenAI API backup and configure the key/model, or provision the private file in [README](../README.md#persistent-api-backup-configuration). Only the Generate action invokes the backup; no automatic retry or charge occurs when switching. This is API authoring, not Codex CLI activity.
-- Prepare a previously generated, labelled draft because live generation may exceed the presentation window. State when it was generated and with which engine.
-- Before the demo, use Fresh demo: archive previous custom scenarios, review the preview and type ARCHIVE. Old custom publications/drafts are hidden, not deleted; do not archive your labelled fallback until you no longer need it. Built-in templates and learner records remain.
-- Paste [the FactoryPulse prompt](../samples/sample1/admin_prompt.txt) and upload the [operations brief](../samples/sample1/FactoryPulse_Operations_Brief.docx) and [sensor charts](../samples/sample1/FactoryPulse_Sensor_Charts.pdf) through Scenario Lab. Review extracted previews. Upload the [synthetic privacy examples](../samples/sample1/FactoryPulse_Privacy_Examples.docx) only if demonstrating screening; they are not needed for the operational exercise. Voice input is optional and collapsed; typing is the dependable fallback.
-- Use 60 work items, seed 2026 and a 35-minute simulated horizon. Playback at 3× advances simulated time; it is not a 35-minute wall-clock presentation.
-- Pause while explaining data. Keep optional 3D/ML tools out of the main demo.
+## Record and present honestly
 
-## 0:00–0:30 — problem and roles
+Codex generation has a 120-second timeout and can exceed the timed Admin segment. In the recording, show the running job, then cut genuine waiting and return to that same job when it finishes. In a strict four-minute live presentation, if the fresh job is still running, open the labelled unpublished rehearsal draft and say when it was created. Do not describe an API or manual draft as Codex output.
 
-Show Overview: “Staff need to practise real business decisions without touching live systems. The Admin / Trainer creates a safe exercise; the Learner investigates linked mock records and chooses a response.”
-
-## 0:30–1:20 — one Scenario Lab
-
-Select Scenario Lab. One page contains **1 · Create an exercise** and **2 · Check and publish**.
-
-Show the selected references and their extracted previews. Optionally dictate one sentence, then stop and edit it. Upload/voice capture does not call Codex or publish anything; only Generate sends selected excerpts to the chosen engine. Keep this demonstration under 10 seconds by uploading before presenting.
-
-Use a prompt such as:
-
-> Create a synthetic FactoryPulse exercise for a plant supervisor. Connect sensors, machine condition, production schedule, quality inspection and shipments. A vibration-sensor calibration fault should hide bearing degradation and cause delays. Include evidence-led diagnosis, maintenance and production-reallocation decisions.
-
-Generate with the selected engine. Show real job progress if ready. If it is still running, transparently inspect the previously generated, labelled draft and explain when and how it was generated.
-
-Inspect the draft's source, mission, workflow and checks. Click Publish & notify learners. Explain that the output is a schema-constrained definition validated in Python, never executable generated code.
-
-## 1:20–2:50 — learner generates, investigates and acts
-
-Switch to Learner. Open Notifications → the new scenario.
-
-Show the mission. Generate 60 work items. Inspect work_items/workflow_steps and relationship checks, then Enter simulation with these datasets.
-
-Complete the visible three-MCQ starting check before playback. Starting knowledge, post-check knowledge, practice score and knowledge change stay above the simulator. After completion, use Learning review for three post-run MCQs and the automatic 100-point breakdown (knowledge 50, diagnosis 25, investigation before response 15, targeted repair 10). No subjective response or trainer-assigned mark is required. Missing baseline means no gain calculation; an unseen follow-up is needed to test retention.
-
-Show a record flowing through the mock application. Start playback and pause near the incident. Inspect the record and Data & visual tools → Live datasets → live_telemetry/source_events. Compare available sensor, machine, quality and shipment evidence before diagnosing the fault.
-
-Use Diagnose & act to identify the first failing system and an evidence-supported cause. In Diagnose & act → Decision desk, commit an appropriate repair. Explain its target, synthetic cost and delay. Resume or step to observe consequences, then Complete run.
-
-These records were generated for this scenario and saved, not fetched from a live client system. Training datasets → Scenario-generated datasets can reopen them later.
-
-## 2:50–3:35 — measurable, explainable outcome
-
-Show the debrief's revealed cause, decision ledger and same-workload no-intervention comparison. Export the report if time permits.
-
-Distinguish simulation evidence from customer validation. Propose a small pilot measuring diagnosis time, pre/post assessment improvement and trainer preparation minutes per approved exercise. Use comparable baselines and feedback; claim no unmeasured customer benefit.
-
-## 3:35–4:00 — coaching and responsible engineering
-
-Return to the same Admin / Trainer → Assignments & results. Assign guidance, or open the learner's completed run in Observation mode. Clock, diagnosis and decision controls cannot take over learner-owned work.
-
-Close: “Codex helped build this application and can author checked scenarios. A deterministic CPU simulator generates linked mock evidence and executes consequences. Humans control publication and learners control their responses.”
-
-The API route is a deployment fallback, not a claim that every runtime inference uses Codex. Show actual Codex-generated work if claiming Codex leverage.
-
-## Production boundary
-
-This is a production-minded pilot. It includes server-side role/ownership checks, logout, bounded inputs, versioned updates, publication transactions, source provenance, audit, retries and reproducible runs.
-
-Before deployment, complete the HTTPS, identity, backup/restore, retention, monitoring/load and domain-validation work in [DEPLOYMENT.md](DEPLOYMENT.md). UI-entered API keys remain only in backend memory; use server secrets for persistence. No passing test suite constitutes production certification.
-
-## Regression evidence
-
-- Backend tests cover two-role publication/notification, owner-only decisions, admin previews, API structured outputs, no-CLI operation, secret-safe errors and migration.
-- roles.spec.js covers the complete admin/learner handoff and supplier diagnosis/action/debrief.
-- scenario-lab.spec.js covers one-page navigation, write-only API-key UI and unified ML discovery; it never requests real paid API generation.
-- navigation.spec.js and training-navigation.spec.js cover durable routes, case files, slow/out-of-order requests and retries.
-- API tests use a mocked provider. Real Codex generation remains opt-in. Respect unchanged login throttling when running large browser batches.
+The original idea documents the client need, but no measured customer pilot is supplied. Synthetic delays and savings are illustrative. Local pattern screening reports recognized types and counts without matched values, but cannot guarantee complete PII detection. The single-host pilot still needs enterprise identity, retention, monitoring, backup/restore drills, load testing and domain validation before rollout.

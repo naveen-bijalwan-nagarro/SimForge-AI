@@ -641,7 +641,14 @@ function ServiceConsole({ run }) {
 
 export function LiveOperations({ run }) {
   const [selected, setSelected] = useState(null);
+  const [view, setView] = useState(
+    run.environment_style === "voxel" ? "diagram" : "application",
+  );
   const live = run.live;
+  useEffect(() => {
+    setSelected(null);
+    setView(run.environment_style === "voxel" ? "diagram" : "application");
+  }, [run.id, run.environment_style]);
   if (!live) return null;
   const columns = Math.min(3, live.systems.length),
     width = columns * 245 + 10,
@@ -666,6 +673,24 @@ export function LiveOperations({ run }) {
           <h3>Live operations</h3>
           <p>{live.explanation}</p>
         </div>
+        <div className="live-view-switch" role="group" aria-label="Live operations view">
+          <button
+            type="button"
+            className={view === "application" ? "active" : ""}
+            aria-pressed={view === "application"}
+            onClick={() => setView("application")}
+          >
+            Application
+          </button>
+          <button
+            type="button"
+            className={view === "diagram" ? "active" : ""}
+            aria-pressed={view === "diagram"}
+            onClick={() => setView("diagram")}
+          >
+            System map
+          </button>
+        </div>
         <span className="badge">
           {run.clock?.running
             ? "PLAYING"
@@ -674,7 +699,7 @@ export function LiveOperations({ run }) {
               : "PAUSED"}
         </span>
       </div>
-      {run.environment_style === "service_app" ? (
+      {view === "application" ? (
         <ServiceConsole run={run} />
       ) : (
         <div className="live-scene" aria-label="Live workflow visualization">
@@ -764,11 +789,11 @@ export function LiveOperations({ run }) {
         </div>
       )}
       <p className="scene-caption">
-        {run.environment_style === "voxel"
+        {view === "application"
+          ? "Mock application workflow; no production application is connected."
+          : run.environment_style === "voxel"
           ? "Block-style operational world, not a Minecraft server."
-          : run.environment_style === "service_app"
-            ? "Mock application workflow; no production application is connected."
-            : "Each box is a real engine system. Dots are capped at eight per system; counts show the full workload."}{" "}
+          : "Each box is a real engine system. Dots are capped at eight per system; counts show the full workload."}{" "}
         Animation pauses with the exercise.
       </p>
       <div className="system-selector">
@@ -877,6 +902,7 @@ export function AdminStudio({
   const [documentRevision, setDocumentRevision] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [privacyPreview, setPrivacyPreview] = useState(null);
+  const [sampleMessage, setSampleMessage] = useState("");
   const [text, setText] = useState(JSON.stringify(genericScenario, null, 2)),
     [drafts, setDrafts] = useState([]),
     [jobs, setJobs] = useState([]),
@@ -1038,6 +1064,37 @@ export function AdminStudio({
               Return to primary Codex
             </button>
             <OpenAIConnection onChange={setApiStatus} />
+          </>
+        )}
+        {engine !== "manual" && (
+          <>
+            <button
+              className="secondary"
+              disabled={busy || job?.status === "running"}
+              onClick={() =>
+                act(async () => {
+                  const packet = await api(
+                    "/scenario-examples/factorypulse_machine_failure/load",
+                    {},
+                  );
+                  if (packet.errors?.length)
+                    throw new Error(
+                      packet.errors.map((item) => item.message).join(" · "),
+                    );
+                  setPrompt(packet.prompt);
+                  setDocumentIds(packet.documents.map((item) => item.id));
+                  setDocumentRevision((value) => value + 1);
+                  setPrivacyPreview(null);
+                  setJob(null);
+                  setSampleMessage(
+                    "FactoryPulse prompt and references loaded. Review them before generating.",
+                  );
+                })
+              }
+            >
+              Load FactoryPulse demo packet
+            </button>
+            {sampleMessage && <p role="status">{sampleMessage}</p>}
           </>
         )}
         <ScenarioDocuments
@@ -1276,7 +1333,23 @@ export function AdminStudio({
                   {d.source} · {d.status}
                 </span>
               </div>
-              <p>{d.definition.mission}</p>
+              <p>
+                <strong>Learner role:</strong> {d.definition.learner_role} ·{" "}
+                <strong>View:</strong> {d.definition.environment_style}
+              </p>
+              <p>
+                <strong>Mission:</strong> {d.definition.mission}
+              </p>
+              <p>
+                <strong>Success:</strong> {d.definition.success}
+              </p>
+              {(d.definition.mission?.length > 200 ||
+                d.definition.success?.length > 170) && (
+                <p className="tiny">
+                  This learner brief is long for the exercise screen. Shorten it
+                  in the definition and revalidate before publishing.
+                </p>
+              )}
               <SecurityLog events={d.governance?.events} documents={d.documents} />
               <div className="validation-checks">
                 {d.checks.map((c) => (
