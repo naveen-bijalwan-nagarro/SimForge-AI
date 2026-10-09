@@ -1,0 +1,8 @@
+# Copy to data/secrets/authoring.local.toml (server only; never commit real keys).
+# Codex is always the primary. This file configures the explicit admin API backup.
+# Use a fresh key that has not been pasted into chat. No automatic/billed failover.
+# Linux: restrict the secrets directory to 700 and this file to 600.
+# Production: also set SIMFORGE_OPENAI_ENABLED=1 and use HTTPS.
+[openai_backup]
+api_key = ""
+model = "gpt-4.1-mini"

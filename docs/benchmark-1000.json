@@ -1,0 +1,44 @@
+{
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "population": 1000,
+  "horizon": 45,
+  "runs": [
+    {
+      "world": "mmorpg_economy",
+      "seconds": 0.0476,
+      "nodes": 10,
+      "events": 14,
+      "completed": 181
+    },
+    {
+      "world": "airline_crisis",
+      "seconds": 0.0361,
+      "nodes": 10,
+      "events": 9,
+      "completed": 113
+    },
+    {
+      "world": "cyber_business",
+      "seconds": 0.0369,
+      "nodes": 10,
+      "events": 12,
+      "completed": 127
+    },
+    {
+      "world": "supply_chain",
+      "seconds": 0.0583,
+      "nodes": 10,
+      "events": 13,
+      "completed": 109
+    },
+    {
+      "world": "city_disaster",
+      "seconds": 0.0342,
+      "nodes": 10,
+      "events": 14,
+      "completed": 135
+    }
+  ],
+  "note": "Single-process wall-clock time for full replay. Not a load/concurrency or cloud benchmark."
+}

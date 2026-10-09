@@ -1,0 +1,8 @@
+# Replace this hostname with your DNS record pointing to the VM.
+simforge.example.com {
+    encode gzip zstd
+    request_body {
+        max_size 1MB
+    }
+    reverse_proxy 127.0.0.1:8000
+}

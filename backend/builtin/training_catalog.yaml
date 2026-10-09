@@ -1,0 +1,359 @@
+- key: sales_decline
+  title: Regional Sales Decline
+  domain: Sales & CRM
+  difficulty: Intermediate
+  icon: 📉
+  summary: Diagnose a sudden revenue decline using customers, orders, products and support data.
+  objective: Identify the affected region, product family and operational root cause, then recommend a recovery action.
+  root_cause: Inventory shortage causing cancellations in West region
+  root_options:
+    - Inventory shortage causing cancellations in West region
+    - Competitor price cut in North region
+    - CRM duplicate-account issue
+    - Payment fraud in East region
+  evidence: [West, stockout, cancellations, P-007]
+  recommendation_keywords: [replenish, inventory, supplier, stock, allocation]
+  modules: [bi, crm, orders, service]
+  inject: sales_decline
+
+- key: customer_churn
+  title: Customer Churn Investigation
+  domain: Customer Success
+  difficulty: Intermediate
+  icon: 🔁
+  summary: Find why a customer segment is churning and identify actionable service improvements.
+  objective: Discover the segment with elevated churn and link it to support response delays.
+  root_cause: Slow support response is driving SMB churn
+  root_options:
+    - Slow support response is driving SMB churn
+    - Enterprise pricing is too low
+    - Product returns are concentrated in retail
+    - Fraud controls are rejecting valid cards
+  evidence: [SMB, response_time, escalations, churn]
+  recommendation_keywords: [sla, support, staffing, response, priority]
+  modules: [bi, crm, service]
+  inject: customer_churn
+
+- key: payment_fraud
+  title: Payment Fraud Spike
+  domain: Risk & Finance
+  difficulty: Advanced
+  icon: 🛡️
+  summary: Investigate abnormal payment alerts without exposing any real payment or customer records.
+  objective: Identify the risky channel and geography and propose a proportionate control.
+  root_cause: Wallet payments from East region show coordinated high-value fraud
+  root_options:
+    - Wallet payments from East region show coordinated high-value fraud
+    - Cash refunds are delayed in South region
+    - Duplicate invoices are inflating revenue
+    - Supplier payments are missing tax codes
+  evidence: [East, wallet, high_value, alerts]
+  recommendation_keywords: [step-up, verification, risk, velocity, block]
+  modules: [bi, finance, alerts]
+  inject: payment_fraud
+
+- key: supplier_risk
+  title: Supplier Delivery Risk
+  domain: Procurement
+  difficulty: Intermediate
+  icon: 🚚
+  summary: Trace delivery delays and stock risk to supplier performance.
+  objective: Identify the supplier causing late deliveries and recommend mitigation.
+  root_cause: Supplier S-03 deterioration is causing late inbound deliveries
+  root_options:
+    - Supplier S-03 deterioration is causing late inbound deliveries
+    - Warehouse picking productivity has improved too much
+    - Customer churn is reducing demand
+    - Invoice tax calculations are incorrect
+  evidence: [S-03, late, lead_time, stock]
+  recommendation_keywords: [alternate, supplier, buffer, contract, expedite]
+  modules: [bi, suppliers, orders]
+  inject: supplier_risk
+
+- key: budget_overrun
+  title: Department Budget Overrun
+  domain: Finance
+  difficulty: Beginner
+  icon: 💰
+  summary: Analyze invoices and spend categories to explain a budget variance.
+  objective: Pinpoint the department and spend category responsible for the variance.
+  root_cause: Marketing contractor spend exceeded plan
+  root_options:
+    - Marketing contractor spend exceeded plan
+    - Sales travel spend fell below plan
+    - IT software renewals were cancelled
+    - Procurement discounts increased
+  evidence: [Marketing, contractor, variance, invoices]
+  recommendation_keywords: [approval, cap, forecast, contract, budget]
+  modules: [bi, finance]
+  inject: budget_overrun
+
+- key: service_sla
+  title: Service Desk SLA Breach
+  domain: Service Operations
+  difficulty: Beginner
+  icon: 🎧
+  summary: Investigate rising SLA breaches across support queues.
+  objective: Find the queue and issue class causing the deterioration.
+  root_cause: Access incidents in Tier-1 queue are breaching SLA
+  root_options:
+    - Access incidents in Tier-1 queue are breaching SLA
+    - Hardware tickets are closing faster
+    - Billing tickets moved to self-service
+    - Fraud alerts are false positives
+  evidence: [Tier-1, access, sla, backlog]
+  recommendation_keywords: [knowledge, automation, staffing, routing, access]
+  modules: [bi, service]
+  inject: service_sla
+
+- key: workforce_attrition
+  title: Workforce Attrition Pattern
+  domain: HR Analytics
+  difficulty: Intermediate
+  icon: 👥
+  summary: Use fully synthetic workforce data to identify an attrition hotspot.
+  objective: Determine the team and factor associated with elevated attrition risk.
+  root_cause: Operations night-shift overtime is associated with attrition
+  root_options:
+    - Operations night-shift overtime is associated with attrition
+    - Engineering tenure is too long
+    - Finance training completion is too high
+    - Sales headcount is growing
+  evidence: [Operations, night, overtime, attrition]
+  recommendation_keywords: [shift, overtime, workload, manager, retention]
+  modules: [bi, workforce]
+  inject: workforce_attrition
+
+- key: quality_defect
+  title: Manufacturing Quality Defect
+  domain: Manufacturing
+  difficulty: Advanced
+  icon: 🏭
+  summary: Diagnose a simulated defect pattern by plant, line and supplier lot.
+  objective: Isolate the line and supplier lot linked to elevated defects.
+  root_cause: Line L2 defects correlate with supplier S-05 lot quality
+  root_options:
+    - Line L2 defects correlate with supplier S-05 lot quality
+    - Line L1 output is too high
+    - Customer demand is seasonal
+    - Support cases are incorrectly tagged
+  evidence: [L2, S-05, defects, lot]
+  recommendation_keywords: [hold, inspect, supplier, lot, corrective]
+  modules: [bi, quality, suppliers]
+  inject: quality_defect
+
+- key: cyber_incident
+  title: Cybersecurity Triage
+  domain: Cybersecurity
+  difficulty: Advanced
+  icon: 🔐
+  summary: Triage synthetic security alerts and determine the likely attack pattern.
+  objective: Identify suspicious identity activity and propose containment steps.
+  root_cause: Repeated impossible-travel logins indicate compromised accounts
+  root_options:
+    - Repeated impossible-travel logins indicate compromised accounts
+    - Scheduled backups are generating alerts
+    - Database storage is over-provisioned
+    - Sales exports are too small
+  evidence: [impossible_travel, identity, failed_login, privileged]
+  recommendation_keywords: [disable, reset, mfa, revoke, investigate]
+  modules: [bi, alerts]
+  inject: cyber_incident
+
+- key: claims_leakage
+  title: Insurance Claims Leakage
+  domain: Insurance
+  difficulty: Advanced
+  icon: 📄
+  summary: Identify anomalous synthetic claims patterns and possible process leakage.
+  objective: Find the provider/claim pattern that warrants review.
+  root_cause: Provider P-14 has abnormal repeat high-value claims
+  root_options:
+    - Provider P-14 has abnormal repeat high-value claims
+    - New policies are lower risk
+    - Customer support volume declined
+    - Supplier lead time improved
+  evidence: [P-14, repeat, high_value, claims]
+  recommendation_keywords: [review, audit, provider, duplicate, control]
+  modules: [bi, claims]
+  inject: claims_leakage
+
+- key: retail_demand
+  title: Retail Demand Surge
+  domain: Retail & Supply Chain
+  difficulty: Intermediate
+  icon: 🛒
+  summary: Respond to a synthetic demand surge while balancing inventory and service levels.
+  objective: Identify the category and region driving stockout risk.
+  root_cause: South region demand surge for Category-C is driving stockouts
+  root_options:
+    - South region demand surge for Category-C is driving stockouts
+    - East region demand collapsed for Category-A
+    - Supplier S-01 stopped invoicing
+    - Service tickets are duplicated
+  evidence: [South, Category-C, demand, stockout]
+  recommendation_keywords: [reallocate, forecast, replenish, inventory, safety stock]
+  modules: [bi, orders, suppliers]
+  inject: retail_demand
+
+- key: data_quality
+  title: Data Quality Root-Cause Exercise
+  domain: Data & Analytics
+  difficulty: Beginner
+  icon: 🧹
+  summary: Train analysts to identify duplicate, missing and inconsistent synthetic records.
+  objective: Detect the source of KPI distortion and propose a data-quality control.
+  root_cause: Duplicate customer records are double-counting active accounts
+  root_options:
+    - Duplicate customer records are double-counting active accounts
+    - Inventory values are encrypted
+    - All invoices are missing
+    - Support SLAs are too strict
+  evidence: [duplicate, customer, active_accounts, email]
+  recommendation_keywords: [deduplicate, key, validation, master data, quality]
+  modules: [bi, crm]
+  inject: data_quality
+
+- key: aml_monitoring
+  title: AML Transaction Monitoring
+  domain: Banking & AML
+  difficulty: Advanced
+  icon: 🏦
+  summary: Investigate a synthetic cluster of high-value wallet alerts and determine whether enhanced controls are warranted.
+  objective: Identify the channel and geography producing coordinated suspicious activity and recommend a proportionate response.
+  root_cause: East-region wallet activity shows coordinated high-value transaction risk
+  root_options:
+    - East-region wallet activity shows coordinated high-value transaction risk
+    - Branch deposits in North are too small
+    - Mortgage approvals are delayed
+    - Customer addresses are incomplete
+  evidence: [East, wallet, high_value, alerts]
+  recommendation_keywords: [review, verification, velocity, monitor, block]
+  modules: [bi, alerts, finance]
+  inject: payment_fraud
+
+- key: healthcare_billing
+  title: Healthcare Billing Anomaly
+  domain: Healthcare Operations
+  difficulty: Advanced
+  icon: 🏥
+  summary: Train analysts on synthetic claims to identify a provider pattern that warrants billing review.
+  objective: Find the provider with unusual repeat high-value activity and recommend a controlled investigation.
+  root_cause: Provider P-14 has abnormal repeat high-value claims
+  root_options:
+    - Provider P-14 has abnormal repeat high-value claims
+    - Patient wait times improved
+    - Pharmacy inventory is overstocked
+    - Claims are concentrated in one month
+  evidence: [P-14, repeat, high_value, claims]
+  recommendation_keywords: [audit, provider, review, duplicate, control]
+  modules: [bi, claims]
+  inject: claims_leakage
+
+- key: telecom_churn
+  title: Telecom Churn & Care Investigation
+  domain: Telecom
+  difficulty: Intermediate
+  icon: 📡
+  summary: Explore synthetic customer and care data to explain elevated churn in a service segment.
+  objective: Link churn to service responsiveness and propose an operational intervention.
+  root_cause: Slow support response is driving SMB churn
+  root_options:
+    - Slow support response is driving SMB churn
+    - Network capacity is excessive
+    - Enterprise contracts are too long
+    - Wallet fraud is increasing
+  evidence: [SMB, response_time, escalations, churn]
+  recommendation_keywords: [sla, support, routing, staffing, retention]
+  modules: [bi, crm, service]
+  inject: customer_churn
+
+- key: logistics_disruption
+  title: Logistics Fulfilment Disruption
+  domain: Logistics
+  difficulty: Intermediate
+  icon: 📦
+  summary: Diagnose synthetic order delays and inventory exposure caused by an upstream delivery problem.
+  objective: Trace fulfilment risk back to the responsible supplier and choose a mitigation.
+  root_cause: Supplier S-03 deterioration is causing late inbound deliveries
+  root_options:
+    - Supplier S-03 deterioration is causing late inbound deliveries
+    - Customer demand has disappeared
+    - Invoice approvals are too fast
+    - Service tickets are duplicated
+  evidence: [S-03, late, lead_time, stock]
+  recommendation_keywords: [alternate, expedite, supplier, buffer, allocation]
+  modules: [bi, suppliers, orders]
+  inject: supplier_risk
+
+- key: public_service_case_backlog
+  title: Public Service Case Backlog
+  domain: Government & Public Services
+  difficulty: Beginner
+  icon: 🏛️
+  summary: Use synthetic case records to diagnose a backlog and SLA deterioration without exposing citizen data.
+  objective: Identify the queue and case type driving delays and propose a service improvement.
+  root_cause: Access incidents in Tier-1 queue are breaching SLA
+  root_options:
+    - Access incidents in Tier-1 queue are breaching SLA
+    - Finance cases are being resolved too quickly
+    - Customer churn is seasonal
+    - Supplier performance is improving
+  evidence: [Tier-1, access, sla, backlog]
+  recommendation_keywords: [routing, automation, staffing, knowledge, backlog]
+  modules: [bi, service]
+  inject: service_sla
+
+- key: esg_supplier_resilience
+  title: ESG Supplier Resilience Review
+  domain: ESG & Supply Chain
+  difficulty: Intermediate
+  icon: 🌱
+  summary: Combine synthetic supplier performance and stock exposure to practice resilience and responsible-sourcing decisions.
+  objective: Identify the supplier creating operational risk and define a mitigation plan.
+  root_cause: Supplier S-03 deterioration is causing late inbound deliveries
+  root_options:
+    - Supplier S-03 deterioration is causing late inbound deliveries
+    - Marketing spend is below plan
+    - Customer lifetime value increased
+    - Claims processing accelerated
+  evidence: [S-03, late, lead_time, stock]
+  recommendation_keywords: [supplier, alternate, contract, buffer, review]
+  modules: [bi, suppliers, orders]
+  inject: supplier_risk
+
+- key: learning_compliance
+  title: Workforce Compliance & Retention
+  domain: Learning & HR
+  difficulty: Intermediate
+  icon: 🎓
+  summary: Practice workforce analytics with synthetic employee records, training status and workload indicators.
+  objective: Identify a workforce hotspot and recommend a safe people intervention.
+  root_cause: Operations night-shift overtime is associated with attrition
+  root_options:
+    - Operations night-shift overtime is associated with attrition
+    - Engineering tenure is too long
+    - Finance training completion is too high
+    - Sales headcount is stable
+  evidence: [Operations, night, overtime, attrition]
+  recommendation_keywords: [training, shift, workload, retention, manager]
+  modules: [bi, workforce]
+  inject: workforce_attrition
+
+- key: ecommerce_stockout
+  title: E-commerce Stockout Response
+  domain: E-commerce
+  difficulty: Intermediate
+  icon: 🛍️
+  summary: Train digital-commerce teams to investigate a synthetic demand surge and protect customer experience.
+  objective: Identify the region and category driving stockout risk and recommend inventory action.
+  root_cause: South region demand surge for Category-C is driving stockouts
+  root_options:
+    - South region demand surge for Category-C is driving stockouts
+    - East region demand collapsed
+    - Supplier invoices are duplicated
+    - Support queues have no backlog
+  evidence: [South, Category-C, demand, stockout]
+  recommendation_keywords: [reallocate, inventory, forecast, replenish, safety stock]
+  modules: [bi, orders, suppliers]
+  inject: retail_demand

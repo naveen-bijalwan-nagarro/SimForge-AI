@@ -1,0 +1,33 @@
+{
+  "name": "simforge-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:e2e": "playwright test",
+    "format": "prettier --write src vite.config.js playwright.config.js e2e"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.4.0",
+    "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/react": "^9.4.0",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.1",
+    "cytoscape": "^3.34.3",
+    "cytoscape-dagre": "^4.0.1",
+    "echarts": "^6.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "prettier": "^3.9.9",
+    "vite": "^6.1.0"
+  }
+}

@@ -1,0 +1,986 @@
+# Multi-domain crisis and digital-twin worlds. Building blocks name the open-source tools a
+# production integration would use; these worlds run natively with synthetic data.
+# Node tuple: [id, label, role, capacity, evidence modality, source system]
+# Action tuple: [id, label, target, effect, cost, duration, description]
+
+# ---------------------------------------------------------------- Cyber & Cloud
+- key: soc_attack_chain
+  title: Cyber Attack / SOC Response
+  category: Cyber & Cloud
+  summary: Phishing → compromised host → lateral movement → cloud access → data exposure → detection → containment → recovery.
+  unit: alerts
+  impact: exposed records (k)
+  nodes:
+    - [email, Mail gateway, security, 6, email, Secure email gateway]
+    - [endpoint, Compromised endpoint, security, 5, log, EDR]
+    - [lateral, Internal network, security, 5, graph, NetFlow]
+    - [cloud, Cloud console access, engineering, 4, log, Cloud audit trail]
+    - [data, Customer data store, security, 4, log, DLP]
+    - [siem, SIEM detection, investigator, 5, log, SIEM]
+    - [response, Containment & recovery, operations, 4, ticket, SOAR]
+    - [business, Business services, finance, 6, kpi, Service health]
+    - [legal, Breach notification, legal, 4, document, Privacy office]
+  edges: [[email, endpoint], [endpoint, lateral], [lateral, cloud], [cloud, data], [data, legal], [endpoint, siem], [siem, response], [data, business], [response, business]]
+  incident: {node: email, cause: A credential-phishing campaign steals an engineer's SSO session through a malicious OAuth consent page., signal: users report a suspicious consent prompt}
+  secondary: siem
+  actions:
+    - [purge_campaign, Purge campaign and revoke OAuth grants, email, repair, 2000, 3, Remove the lure and invalidate stolen consent.]
+    - [investigate_mail, Investigate phishing telemetry, email, inspect, 200, 0, Find recipients and clicks.]
+    - [isolate_host, Isolate compromised endpoint, endpoint, contain, 600, 1, Stop lateral movement; the user loses the laptop.]
+    - [rotate_keys, Rotate cloud access keys, cloud, repair, 1500, 2, Invalidate stolen cloud sessions.]
+    - [ir_surge, Engage IR retainer, response, boost, 1600, 1, More responders for six minutes.]
+  rules:
+    - {name: pivot, at: 11, when: ["email.intrinsic<60", "!endpoint.isolated"], target: cloud, health: 40, message: Attacker pivots to the cloud console with a stolen session token.}
+    - {name: exfiltration, at: 20, when: ["cloud.health<55"], target: data, health: 35, message: Large egress from the customer data bucket to an unknown ASN.}
+  decoys: [A vulnerability scanner flooding the SIEM, A misconfigured VPN causing impossible-travel alerts, An expired certificate on the mail gateway]
+  agents: {security: SOC lead, engineering: Cloud engineer, investigator: Threat hunter, operations: Incident manager, finance: Business continuity, legal: Privacy counsel}
+  entity: {alert: 'seq:ALR', host: Asset, user: Employee, technique: [T1566, T1078, T1021, T1530, T1041]}
+  emits: [{signal: compromised_credentials, node: cloud, below: 60}, {signal: data_breach, node: data, below: 50}]
+  building_blocks: [MITRE CALDERA, Atomic Red Team, Stratus Red Team, CloudGoat]
+  objectives: [Contain before exfiltration, Minimise business disruption, Meet notification duties]
+
+- key: cti_soc
+  title: Agentic Cyber SOC (CTI → ATT&CK → Emulation)
+  category: Cyber & Cloud
+  summary: Threat report → CTI extraction → ATT&CK graph → attack simulation → alerts → SOC investigation → remediation. Detection coverage gaps are the real enemy.
+  unit: techniques
+  impact: undetected technique-hours
+  nodes:
+    - [report, Threat report intake, investigator, 5, document, CTI feed]
+    - [cti, CTI extraction (STIX), investigator, 4, graph, CTI platform]
+    - [attack_graph, ATT&CK technique graph, investigator, 4, graph, ATT&CK Navigator]
+    - [emulation, Adversary emulation, security, 4, log, CALDERA]
+    - [detections, Detection rules, engineering, 4, log, Detection-as-code]
+    - [alerts, Alert pipeline, security, 5, log, SIEM]
+    - [investigation, SOC investigation, security, 5, ticket, Case management]
+    - [remediation, Remediation, operations, 4, ticket, Change management]
+    - [posture, Security posture, executive, 6, kpi, Risk dashboard]
+  edges: [[report, cti], [cti, attack_graph], [attack_graph, emulation], [emulation, alerts], [detections, alerts], [alerts, investigation], [investigation, remediation], [remediation, posture], [attack_graph, posture]]
+  incident: {node: detections, cause: A stale detection pack silently disabled rules for T1098 account manipulation after a schema change., signal: emulated techniques produce no alerts}
+  secondary: investigation
+  actions:
+    - [redeploy_rules, Fix and redeploy detection pack, detections, repair, 1900, 3, Restore coverage for manipulated accounts.]
+    - [coverage_test, Run coverage test with emulation, detections, inspect, 250, 0, Map emulated techniques to alerts.]
+    - [manual_hunt, Manual threat hunt, investigation, boost, 1200, 1, Analysts hunt for the uncovered technique.]
+    - [auto_triage, Auto-triage low-risk alerts, alerts, reroute, 900, 2, Route noise away from analysts.]
+  rules:
+    - {name: blind_spot, at: 12, when: ["detections.intrinsic<60", "!investigation.boosted"], target: remediation, health: 40, message: Persistence via account manipulation goes unremediated.}
+    - {name: posture_drop, at: 22, when: ["remediation.health<55"], target: posture, health: 45, message: Board risk dashboard turns red for identity threats.}
+  decoys: [An overloaded CTI parser, A false-positive storm from a new EDR, A lapsed threat-intel subscription]
+  agents: {investigator: CTI analyst, security: Detection engineer, engineering: SIEM engineer, operations: Remediation owner, executive: CISO}
+  entity: {technique: [T1098, T1136, T1078, T1059, T1003, T1486], report: 'seq:RPT', analyst: Employee, confidence: [0.2, 0.99]}
+  consumes: [data_breach]
+  building_blocks: [MITRE CALDERA, CALDERA MCP plugin, STIX/TAXII, MITRE ATT&CK]
+  objectives: [Detection coverage, Analyst focus, Mean time to remediate]
+
+- key: ot_ics
+  title: OT / ICS Cyberattack
+  category: Cyber & Cloud
+  summary: Attacker → BACnet/DNP3 → HVAC and pump control changes → physical consequence → SOC and plant-operator response.
+  unit: control events
+  impact: process deviation minutes
+  visual: thermal
+  nodes:
+    - [it_network, IT/OT boundary, security, 5, graph, Firewall logs]
+    - [historian, Plant historian, engineering, 4, sensor, Historian]
+    - [gateway, DNP3/BACnet gateway, security, 4, log, OT IDS]
+    - [plc, PLC controllers, engineering, 4, log, Engineering workstation]
+    - [pumps, Pump station, engineering, 5, image, Thermal cameras]
+    - [hvac, HVAC control, engineering, 4, sensor, BMS]
+    - [safety_sys, Safety instrumented system, safety, 3, sensor, SIS]
+    - [plant_ops, Plant operations, operations, 5, kpi, Control room]
+    - [soc, OT SOC, security, 5, ticket, SOC]
+  edges: [[it_network, historian], [historian, gateway], [gateway, plc], [plc, pumps], [plc, hvac], [pumps, safety_sys], [hvac, plant_ops], [safety_sys, plant_ops], [gateway, soc]]
+  incident: {node: gateway, cause: Unauthenticated DNP3 write commands from a compromised historian change pump setpoints., signal: unexpected setpoint writes observed}
+  secondary: plc
+  actions:
+    - [lock_gateway, Enforce authenticated writes on the gateway, gateway, repair, 2100, 4, Block unauthenticated function codes.]
+    - [ot_forensics, Analyze OT network capture, gateway, inspect, 250, 0, Decode DNP3 function codes.]
+    - [manual_mode, Switch pumps to manual control, pumps, reroute, 1400, 2, Operators control pumps locally.]
+    - [isolate_historian, Isolate historian from OT, historian, contain, 700, 1, Cut the attack path; lose trending.]
+    - [ops_staff, Add control-room operators, plant_ops, boost, 900, 1, Extra operator attention.]
+  rules:
+    - {name: overpressure, at: 11, when: ["gateway.intrinsic<60", "!pumps.bypass"], target: safety_sys, health: 38, message: Pressure approaches the SIS trip point; pumps cavitate.}
+    - {name: comfort_loss, at: 21, when: ["hvac.health<55"], target: plant_ops, health: 50, message: HVAC setpoints drift; clean-room tolerance lost.}
+  decoys: [A failing pressure transmitter, A scheduled PLC firmware upgrade, An operator training exercise]
+  agents: {security: OT security analyst, engineering: Control engineer, safety: Process safety engineer, operations: Shift supervisor}
+  entity: {tag: Sensor, device: Asset, operator: Employee, setpoint_bar: [2.0, 9.5]}
+  building_blocks: [MITRE CALDERA for OT, CALDERA DNP3 plugin, CALDERA BACnet plugin]
+  objectives: [Process safety, Availability, Evidence preservation]
+
+- key: cloud_cascade
+  title: Complex Cloud Failure
+  category: Cyber & Cloud
+  summary: Bad IaC → deployment → pod failures → autoscaling → database latency → cascading API failure → SLA violation → rollback.
+  unit: requests
+  impact: failed requests (k)
+  nodes:
+    - [iac, IaC change, engineering, 4, document, OpenTofu plan]
+    - [deploy, Deployment pipeline, engineering, 4, log, Argo Workflows]
+    - [pods, Pods, engineering, 6, log, Kubernetes events]
+    - [autoscaler, Autoscaler, operations, 4, sensor, HPA metrics]
+    - [database, Database, engineering, 4, sensor, DB metrics]
+    - [cache, Cache, operations, 5, sensor, Cache metrics]
+    - [api, Public API, operations, 6, log, API gateway]
+    - [checkout, Checkout service, finance, 5, kpi, Business metrics]
+    - [sla, Customer SLA, finance, 6, kpi, SLA reports]
+  edges: [[iac, deploy], [deploy, pods], [pods, autoscaler], [autoscaler, database], [database, api], [cache, api], [api, checkout], [checkout, sla]]
+  incident: {node: iac, cause: An OpenTofu change halves the DB connection pool and removes pod anti-affinity., signal: plan applied with connection-pool changes}
+  secondary: database
+  actions:
+    - [revert_iac, Revert IaC and redeploy, iac, repair, 2000, 4, Restore the previous infrastructure definition.]
+    - [diff_plan, Diff the applied plan, iac, inspect, 200, 0, Identify the risky resource changes.]
+    - [rollback, Roll back application release, deploy, reroute, 1200, 2, Serve the previous version.]
+    - [scale_db, Add read replicas, database, boost, 1500, 1, Temporary DB capacity.]
+    - [shed_load, Rate-limit non-critical APIs, api, contain, 500, 1, Protect checkout but block partners.]
+  rules:
+    - {name: pool_exhaustion, at: 11, when: ["iac.intrinsic<60", "!database.boosted"], target: api, health: 40, message: Connection-pool exhaustion cascades into API timeouts.}
+    - {name: sla_breach, at: 22, when: ["checkout.health<55"], target: sla, health: 45, message: Monthly SLA budget consumed; service credits due.}
+  decoys: [A cloud-provider regional outage, A DDoS on the API gateway, A slow third-party payment API]
+  agents: {engineering: Platform SRE, operations: Incident commander, finance: Customer success}
+  entity: {service: Asset, customer: Customer, region: [us-east, eu-west, ap-south], latency_ms: [20, 2400]}
+  emits: [{signal: cloud_outage, node: api, below: 55}]
+  consumes: [network_outage]
+  building_blocks: [kind, OpenTofu, Argo Workflows, Chaos Mesh, Prefect]
+  objectives: [Restore SLOs, Safe rollback, Protect revenue]
+
+- key: localstack_lab
+  title: Local Cloud Disaster Lab
+  category: Cyber & Cloud
+  summary: API, Lambda, storage, IAM, queue and network failures practised locally without cloud cost.
+  unit: invocations
+  impact: failed invocations (k)
+  nodes:
+    - [iam, IAM roles, security, 4, log, CloudTrail (local)]
+    - [vpc, VPC & NAT, engineering, 4, graph, Flow logs]
+    - [gateway, API Gateway, operations, 5, log, API logs]
+    - [lambda, Lambda functions, engineering, 5, log, Function logs]
+    - [queue, SQS queues, operations, 5, sensor, Queue depth]
+    - [storage, S3 buckets, engineering, 4, log, Access logs]
+    - [table, DynamoDB tables, engineering, 4, sensor, Table metrics]
+    - [customers, Customer workflows, finance, 6, kpi, Business dashboard]
+  edges: [[iam, lambda], [vpc, lambda], [gateway, lambda], [lambda, queue], [lambda, storage], [queue, table], [storage, customers], [table, customers]]
+  incident: {node: iam, cause: A least-privilege refactor denies s3:PutObject to the processing Lambda role., signal: AccessDenied errors in function logs}
+  extra_incidents:
+    - {node: vpc, tick: 14, severity: 0.5, cause: A route-table change removes the NAT route for private subnets, signal: outbound timeouts from private subnets}
+  secondary: queue
+  actions:
+    - [fix_policy, Restore the missing IAM permission, iam, repair, 1600, 2, Grant the minimal missing action.]
+    - [policy_sim, Run IAM policy simulator, iam, inspect, 150, 0, Evaluate effective permissions.]
+    - [dlq_replay, Replay dead-letter queue, queue, boost, 800, 1, Drain backlog once fixed.]
+    - [restore_route, Restore NAT route, vpc, repair, 900, 2, Fix private-subnet egress.]
+  rules:
+    - {name: dlq, at: 11, when: ["iam.intrinsic<60"], target: queue, health: 42, message: Messages pile up in the dead-letter queue.}
+    - {name: stale_reports, at: 21, when: ["storage.health<55"], target: customers, health: 50, message: Customer reports are not generated for the day.}
+  decoys: [Lambda concurrency limits, A cold-start regression, An S3 eventual-consistency issue]
+  agents: {security: Cloud security engineer, engineering: Serverless engineer, operations: Cloud operations, finance: Customer impact}
+  entity: {function: [ingest, transform, notify, report], request: 'seq:REQ', customer: Customer, duration_ms: [15, 9000]}
+  emits: [{signal: cloud_outage, node: customers, below: 78}]
+  building_blocks: [LocalStack, OpenTofu, pytest]
+  objectives: [Restore processing, Least privilege, Recovery point objective]
+
+- key: cloud_misconfig
+  title: Cloud Security Misconfiguration
+  category: Cyber & Cloud
+  summary: IAM mistake → exposed service → privilege chain → alert → remediation. Designed for disposable sandbox accounts only.
+  unit: findings
+  impact: exposure-hours
+  nodes:
+    - [iam, IAM policy, security, 4, document, IAM analyzer]
+    - [ci_role, CI/CD role, engineering, 4, log, CI logs]
+    - [service, Exposed service, engineering, 5, log, Load balancer logs]
+    - [privesc, Privilege chain, security, 4, graph, Access graph]
+    - [secrets, Secrets manager, security, 4, log, Secrets audit]
+    - [data, Sensitive data, security, 4, log, DLP]
+    - [detection, Cloud detections, investigator, 5, log, Cloud SIEM]
+    - [compliance, Compliance posture, legal, 5, kpi, CSPM]
+  edges: [[iam, ci_role], [ci_role, privesc], [service, privesc], [privesc, secrets], [secrets, data], [data, compliance], [privesc, detection], [detection, compliance]]
+  incident: {node: iam, cause: A wildcard iam:PassRole grant lets the CI role assume an admin instance profile., signal: IAM analyzer flags an overly broad PassRole}
+  secondary: privesc
+  actions:
+    - [tighten_iam, Scope PassRole to named roles, iam, repair, 1500, 2, Remove the escalation path.]
+    - [access_graph, Analyze the access graph, iam, inspect, 200, 0, Find escalation paths.]
+    - [rotate_secrets, Rotate exposed secrets, secrets, repair, 1200, 2, Invalidate reachable credentials.]
+    - [waf, Put service behind WAF, service, contain, 500, 1, Reduce exposure; some clients break.]
+  rules:
+    - {name: escalation, at: 11, when: ["iam.intrinsic<60"], target: secrets, health: 40, message: Admin profile used to read secrets manager.}
+    - {name: audit_fail, at: 21, when: ["data.health<55"], target: compliance, health: 45, message: CIS benchmark and PCI controls fail.}
+  decoys: [A public S3 bucket used for a website, A dormant IAM user, An outdated AMI]
+  agents: {security: Cloud security architect, engineering: DevOps lead, investigator: Detection engineer, legal: Compliance manager}
+  entity: {finding: 'seq:FND', resource: Asset, owner: Employee, severity: [low, medium, high, critical]}
+  emits: [{signal: compromised_credentials, node: secrets, below: 55}]
+  building_blocks: [CloudGoat, GCPGoat, IAM policy simulators]
+  objectives: [Close escalation paths, Keep CI working, Audit readiness]
+
+- key: telecom_outage
+  title: Telecom Outage
+  category: Cyber & Cloud
+  summary: Router failure → packet loss → customer outage → rerouting → SLA impact, including emergency-call resilience.
+  unit: sessions
+  impact: customer-minutes lost
+  visual: tower
+  nodes:
+    - [routers, Core routers, engineering, 4, log, Router syslog]
+    - [bgp, BGP routing, engineering, 4, graph, Route collector]
+    - [backhaul, Backhaul links, engineering, 5, sensor, Link telemetry]
+    - [towers, Cell towers, operations, 6, image, RAN inspection]
+    - [packet, Packet core, engineering, 5, sensor, Core KPIs]
+    - [emergency, Emergency calls, safety, 3, kpi, PSAP interface]
+    - [consumers, Consumer customers, finance, 6, kpi, Service assurance]
+    - [enterprise, Enterprise SLAs, finance, 5, kpi, SLA manager]
+    - [noc, NOC operations, operations, 5, ticket, NOC tickets]
+  edges: [[routers, bgp], [bgp, backhaul], [backhaul, towers], [backhaul, packet], [towers, emergency], [packet, consumers], [packet, enterprise], [routers, noc], [noc, enterprise]]
+  incident: {node: routers, cause: A route-policy change on a core router leaks internal prefixes to peers., signal: BGP session flaps and prefix counts spike}
+  secondary: packet
+  actions:
+    - [rollback_policy, Roll back route policy, routers, repair, 1900, 3, Restore the previous route policy.]
+    - [route_analysis, Analyze route collector data, routers, inspect, 200, 0, Confirm leaked prefixes.]
+    - [reroute_traffic, Reroute via secondary core, backhaul, reroute, 1500, 2, Use the backup path.]
+    - [emergency_priority, Prioritize emergency calls, emergency, reroute, 700, 1, Guarantee PSAP routing.]
+  rules:
+    - {name: packet_loss, at: 11, when: ["routers.intrinsic<60", "!backhaul.bypass"], target: packet, health: 40, message: Packet loss exceeds 8%; voice quality collapses.}
+    - {name: sla_credits, at: 21, when: ["enterprise.health<55"], target: enterprise, health: 40, message: Enterprise SLA credits triggered.}
+  decoys: [A fibre cut from road works, A DDoS against DNS, A software bug on cell sites]
+  agents: {engineering: IP network engineer, operations: NOC manager, safety: Emergency services liaison, finance: Customer & SLA lead}
+  entity: {subscriber: Customer, cell: Asset, region: Location, throughput_mbps: [1, 900]}
+  emits: [{signal: network_outage, node: packet, below: 55}]
+  consumes: [blackout]
+  building_blocks: [ns-3, Mininet, FRRouting]
+  objectives: [Emergency calls first, Restore service, SLA protection]
+
+# ---------------------------------------------------------------- Industrial & Energy
+- key: manufacturing_twin
+  title: Manufacturing Digital Twin
+  category: Industrial & Energy
+  summary: Machine → PLC/IoT → production line → quality defect → maintenance → production loss.
+  unit: work orders
+  impact: lost units
+  visual: thermal
+  nodes:
+    - [machine, CNC machining centre, engineering, 4, image, Thermal camera]
+    - [plc, PLC & controls, engineering, 4, log, PLC logs]
+    - [iot, IoT telemetry, engineering, 5, sensor, Asset Administration Shell]
+    - [line, Production line, operations, 5, kpi, MES]
+    - [quality, Quality inspection, investigator, 4, image, Vision station]
+    - [maintenance, Maintenance, operations, 4, ticket, CMMS]
+    - [inventory, Finished-goods inventory, operations, 5, transaction, ERP]
+    - [orders, Customer orders, finance, 5, transaction, Order book]
+    - [oee, OEE, executive, 6, kpi, Plant dashboard]
+  edges: [[machine, plc], [machine, iot], [plc, line], [iot, maintenance], [line, quality], [quality, inventory], [maintenance, line], [inventory, orders], [line, oee], [orders, oee]]
+  incident: {node: machine, cause: Spindle-bearing wear raises vibration and causes dimensional drift on bore diameters., signal: spindle vibration rises above baseline}
+  secondary: quality
+  actions:
+    - [replace_bearing, Replace spindle bearing, machine, repair, 2200, 5, Restore spindle condition.]
+    - [vibration_analysis, Vibration spectrum analysis, machine, inspect, 200, 0, Compare bearing defect frequencies.]
+    - [route_parts, Route parts to backup machine, line, reroute, 1400, 2, Use a second machining centre.]
+    - [sort_parts, 100% sorting of recent lots, quality, boost, 1000, 1, Temporary inspection capacity.]
+    - [expedite, Expedite spare parts, maintenance, boost, 900, 1, Faster maintenance turnaround.]
+  rules:
+    - {name: scrap, at: 11, when: ["machine.intrinsic<60", "!quality.boosted"], target: inventory, health: 40, message: Out-of-tolerance parts reach finished goods; scrap rate rises.}
+    - {name: late_orders, at: 21, when: ["inventory.health<55"], target: orders, health: 45, message: Customer deliveries slip; expedite fees apply.}
+  decoys: [A coolant concentration issue, Operator shift change, A new raw-material lot]
+  agents: {engineering: Reliability engineer, operations: Production manager, investigator: Quality engineer, finance: Customer delivery, executive: Plant manager}
+  entity: {work_order: 'seq:WO', machine: Machine, sensor: Sensor, part: Product, bore_mm: [49.95, 50.08]}
+  emits: [{signal: delayed_shipments, node: orders, below: 55}, {signal: supplier_failure, node: inventory, below: 50}]
+  building_blocks: [Eclipse BaSyx, Eclipse Ditto, EdgeX Foundry, OpenModelica]
+  objectives: [Quality, Throughput, Maintenance cost]
+
+- key: factory_visual
+  title: Factory Visual Failure
+  category: Industrial & Energy
+  summary: Camera detects defects → QA agent → machine trace → batch recall → root-cause analysis. New lighting silently blinds the detector.
+  unit: parts
+  impact: escaped defects
+  visual: surface
+  visual_lighting: {lighting: 1.45}
+  nodes:
+    - [supplier, Material lots, operations, 4, transaction, Supplier portal]
+    - [machine, Stamping press, engineering, 5, sensor, Press telemetry]
+    - [lighting, Line lighting, engineering, 4, image, Camera station]
+    - [detector, Defect detector model, investigator, 4, image, Vision model]
+    - [qa, QA review, investigator, 4, ticket, QA queue]
+    - [batch, Batch genealogy, operations, 5, graph, MES genealogy]
+    - [recall, Recall decision, legal, 3, document, Quality board]
+    - [customers, Customer shipments, finance, 6, kpi, Shipping]
+  edges: [[supplier, machine], [machine, batch], [lighting, detector], [detector, qa], [batch, qa], [qa, recall], [recall, customers], [batch, customers]]
+  incident: {node: lighting, cause: A new LED fixture on line 3 raises brightness 45% so the detector misses scratches., signal: detector confidence distribution shifts}
+  secondary: qa
+  actions:
+    - [recalibrate, Normalize lighting and recalibrate camera, lighting, repair, 1800, 3, Restore imaging conditions.]
+    - [image_audit, Audit recent inspection images, lighting, inspect, 200, 0, Compare image statistics before and after.]
+    - [manual_qa, Manual visual inspection, qa, boost, 1100, 1, Human inspectors for six minutes.]
+    - [hold_batches, Hold suspect batches, batch, contain, 600, 1, Stop shipments of suspect lots.]
+  rules:
+    - {name: escapes, at: 11, when: ["lighting.intrinsic<60", "!batch.isolated"], target: customers, health: 40, message: Scratched housings reach a key customer; complaint raised.}
+    - {name: recall_board, at: 21, when: ["customers.health<55"], target: recall, health: 45, message: Quality board considers a field recall.}
+  decoys: [A die wear issue on the press, A new coating supplier, Operator fatigue on night shift]
+  agents: {operations: Production supervisor, engineering: Vision engineer, investigator: QA lead, legal: Quality board, finance: Customer quality}
+  entity: {part: 'seq:PART', lot: Product, press: Machine, brightness: [90, 210]}
+  emits: [{signal: delayed_shipments, node: customers, below: 50}]
+  building_blocks: [MVTec AD (non-commercial), MMDetection, Anomalib, OpenCV]
+  objectives: [Stop escapes, Minimise scrap, Customer trust]
+
+- key: wind_turbine
+  title: Wind-Turbine Failure
+  category: Industrial & Energy
+  summary: Wind conditions → vibration → bearing and pitch anomalies → power loss → predictive maintenance.
+  unit: turbine-hours
+  impact: MWh lost
+  visual: turbine
+  nodes:
+    - [wind, Wind conditions, safety, 5, sensor, Met mast]
+    - [rotor, Rotor & blades, engineering, 4, image, Drone inspection]
+    - [bearing, Main bearing, engineering, 4, sensor, CMS vibration]
+    - [pitch, Pitch system, engineering, 4, sensor, Pitch controller]
+    - [gearbox, Gearbox, engineering, 4, sensor, Oil debris sensor]
+    - [generator, Generator, engineering, 4, sensor, SCADA]
+    - [power, Power output, operations, 6, kpi, Farm SCADA]
+    - [maintenance, Predictive maintenance, operations, 4, ticket, CMMS]
+    - [grid, Grid commitment, finance, 5, kpi, Energy trading]
+  edges: [[wind, rotor], [rotor, bearing], [rotor, pitch], [bearing, gearbox], [gearbox, generator], [pitch, power], [generator, power], [bearing, maintenance], [power, grid]]
+  incident: {node: bearing, cause: Main-bearing lubrication failure raises 1P vibration and heat., signal: 1P vibration amplitude doubles}
+  extra_incidents:
+    - {node: pitch, tick: 14, severity: 0.5, cause: A pitch-actuator hydraulic leak slows blade 2, signal: pitch asymmetry alarm}
+  secondary: gearbox
+  actions:
+    - [relube, Re-lubricate and replace bearing seal, bearing, repair, 2200, 5, Restore bearing condition.]
+    - [cms_review, Review condition-monitoring spectra, bearing, inspect, 200, 0, Check bearing defect frequencies.]
+    - [derate, Derate turbine, power, reroute, 900, 2, Reduce loads while keeping partial output.]
+    - [fix_pitch, Repair pitch actuator, pitch, repair, 1200, 3, Fix the hydraulic leak.]
+    - [crane_booking, Pre-book crane & crew, maintenance, boost, 1300, 1, Faster maintenance execution.]
+  rules:
+    - {name: gearbox_damage, at: 12, when: ["bearing.intrinsic<60", "!power.bypass"], target: gearbox, health: 38, message: Debris count rises in gearbox oil; secondary damage risk.}
+    - {name: imbalance_penalty, at: 22, when: ["power.health<55"], target: grid, health: 45, message: Energy delivery shortfall incurs imbalance charges.}
+  decoys: [Icing on blades, A met-mast sensor fault, Grid curtailment]
+  agents: {safety: Site safety lead, engineering: Reliability engineer, operations: Wind-farm operator, finance: Energy trader}
+  entity: {turbine: Machine, sensor: Sensor, technician: Employee, rated_mw: [2.0, 6.0]}
+  emits: [{signal: power_loss, node: power, below: 74}]
+  consumes: [weather_extreme]
+  building_blocks: [OpenFAST, NREL 5MW reference turbine, NASA C-MAPSS-style degradation]
+  objectives: [Availability, Safety, Maintenance cost]
+
+- key: turbofan
+  title: Aircraft / Turbofan Degradation
+  category: Industrial & Energy
+  summary: Sensor drift → component degradation → RUL prediction → maintenance → flight disruption.
+  unit: engine cycles
+  impact: disrupted flights
+  nodes:
+    - [sensors, Engine sensors, engineering, 5, sensor, ACARS]
+    - [hpc, High-pressure compressor, engineering, 4, sensor, EHM]
+    - [hpt, High-pressure turbine, engineering, 4, image, Borescope]
+    - [egt, EGT margin, engineering, 4, sensor, EHM]
+    - [rul, RUL model, investigator, 4, kpi, Prognostics]
+    - [maintenance, Engine shop, operations, 3, ticket, MRO system]
+    - [spares, Spare engines, finance, 3, transaction, Asset management]
+    - [fleet, Fleet schedule, operations, 5, kpi, Ops control]
+    - [flights, Flights, executive, 6, kpi, AODB]
+  edges: [[sensors, rul], [hpc, egt], [hpt, egt], [egt, rul], [rul, maintenance], [maintenance, fleet], [spares, fleet], [fleet, flights]]
+  incident: {node: hpc, cause: HPC blade fouling reduces efficiency faster than the maintenance plan assumes., signal: EGT margin trending down}
+  extra_incidents:
+    - {node: sensors, tick: 10, severity: 0.45, cause: A T30 sensor drifts +6 K on two engines and hides the trend, signal: sensor disagreement between channels}
+  secondary: egt
+  actions:
+    - [wash, On-wing compressor water wash, hpc, repair, 1700, 3, Recover efficiency.]
+    - [borescope, Borescope inspection, hpc, inspect, 250, 0, Inspect blades.]
+    - [swap_sensor, Replace drifting sensors, sensors, repair, 700, 1, Restore sensor trust.]
+    - [spare_engine, Lease spare engine, spares, boost, 1800, 1, Keep schedule flying.]
+  rules:
+    - {name: rul_miss, at: 12, when: ["hpc.intrinsic<60", "sensors.intrinsic<70"], target: rul, health: 40, message: RUL model over-predicts remaining life by 400 cycles.}
+    - {name: aog, at: 22, when: ["maintenance.health<55"], target: flights, health: 45, message: Aircraft on ground; flights cancelled.}
+  decoys: [Foreign-object damage, Fuel control unit fault, Bird strike]
+  agents: {engineering: Powerplant engineer, investigator: Prognostics analyst, operations: Maintenance control, finance: Asset manager, executive: Ops control centre}
+  entity: {engine: Machine, cycle: [1, 25000], sensor: Sensor, egt_margin_c: [5, 80]}
+  building_blocks: [NASA C-MAPSS, N-CMAPSS, scikit-learn]
+  objectives: [Safety margin, Schedule reliability, Shop-visit cost]
+
+- key: grid_cascade
+  title: Power-Grid Cascading Outage
+  category: Industrial & Energy
+  summary: Generator trip → overloaded line → cascading outage → load shedding → restoration of critical loads.
+  unit: restorations
+  impact: MWh unserved
+  visual: tower
+  nodes:
+    - [generator, Generating unit, engineering, 4, sensor, Plant DCS]
+    - [frequency, Frequency control, engineering, 4, sensor, EMS]
+    - [lines, Transmission lines, engineering, 5, image, Line patrol]
+    - [substations, Substations, engineering, 5, sensor, SCADA]
+    - [load_shed, Load shedding, operations, 4, log, UFLS relays]
+    - [restoration, Restoration crews, emergency, 4, map, Crew tracking]
+    - [critical, Critical loads, safety, 4, kpi, Critical customer list]
+    - [customers, Customers, finance, 6, kpi, Outage management]
+  edges: [[generator, frequency], [generator, lines], [frequency, load_shed], [lines, substations], [substations, customers], [load_shed, customers], [restoration, substations], [substations, critical]]
+  incident: {node: generator, cause: A 1 200 MW unit trips on turbine protection during peak load., signal: frequency nadir 49.4 Hz}
+  secondary: lines
+  actions:
+    - [reserves, Dispatch spinning reserves, generator, repair, 2100, 3, Replace lost generation.]
+    - [event_analysis, Analyze PMU event data, generator, inspect, 200, 0, Confirm the trip sequence.]
+    - [reconfigure, Reconfigure transmission topology, lines, reroute, 1400, 2, Relieve overloaded corridors.]
+    - [island_critical, Island critical loads, critical, reroute, 1000, 2, Keep hospitals on microgrids.]
+    - [crews, Mobilize restoration crews, restoration, boost, 1200, 1, More crews.]
+  rules:
+    - {name: line_overload, at: 11, when: ["generator.intrinsic<60", "!lines.bypass"], target: substations, health: 38, message: Parallel line overload trips; the cascade spreads to two substations.}
+    - {name: critical_backup, at: 21, when: ["substations.health<55", "!critical.bypass"], target: critical, health: 40, message: Hospitals and water plants on backup fuel.}
+  decoys: [A cyberattack on the EMS, Geomagnetic disturbance, A faulty protection relay setting]
+  agents: {engineering: Transmission operator, operations: Distribution operator, emergency: Restoration lead, safety: Critical infrastructure liaison, finance: Customer impact}
+  entity: {bus: Asset, feeder: Location, crew: Employee, load_mw: [1.0, 120.0]}
+  emits: [{signal: blackout, node: customers, below: 55}]
+  consumes: [power_loss, weather_extreme]
+  building_blocks: [Grid2Op, PyPSA, pandapower]
+  objectives: [Stop the cascade, Critical loads, Fast restoration]
+
+- key: powerline_inspection
+  title: Power-Line Inspection
+  category: Industrial & Energy
+  summary: Drones inspect towers → detect corrosion and broken insulators → prioritize maintenance → dispatch crews before failure.
+  unit: towers
+  impact: outage risk-hours
+  visual: tower
+  nodes:
+    - [flights, Drone flights, operations, 5, video, Flight logs]
+    - [imagery, Inspection imagery, engineering, 5, image, Image store]
+    - [detection, Defect detection model, investigator, 4, image, Detector]
+    - [towers, Tower condition, engineering, 4, image, Asset register]
+    - [insulators, Insulator strings, engineering, 4, image, Asset register]
+    - [priority, Risk prioritization, investigator, 4, kpi, Risk model]
+    - [crews, Crew dispatch, operations, 4, map, Work management]
+    - [reliability, Line reliability, finance, 6, kpi, Reliability dashboard]
+  edges: [[flights, imagery], [imagery, detection], [towers, detection], [insulators, detection], [detection, priority], [priority, crews], [crews, reliability], [towers, reliability]]
+  incident: {node: towers, cause: A corroded crossarm and a cracked insulator string on tower T-114 approach failure., signal: corrosion index rising on span 114}
+  secondary: priority
+  actions:
+    - [replace_crossarm, Replace crossarm and insulators, towers, repair, 2100, 5, Remove the failure risk.]
+    - [review_images, Review close-up images, towers, inspect, 200, 0, Confirm defect severity.]
+    - [reflight, Re-fly with higher overlap, flights, boost, 800, 1, Better imagery.]
+    - [manual_patrol, Manual line patrol, crews, reroute, 1100, 2, Ground patrol backup.]
+  rules:
+    - {name: flashover, at: 12, when: ["towers.intrinsic<60", "!crews.bypass"], target: insulators, health: 38, message: Flashover risk during rain; protection may trip the line.}
+    - {name: saidi, at: 22, when: ["reliability.health<55"], target: reliability, health: 40, message: Reliability indices breach regulatory targets.}
+  decoys: [Bird nesting, Vegetation encroachment, Camera lens fogging]
+  agents: {operations: Drone operations lead, engineering: Lines engineer, investigator: Asset analytics, finance: Reliability manager}
+  entity: {tower: Asset, drone: Vehicle, pilot: Employee, corrosion_index: [0.0, 1.0]}
+  emits: [{signal: equipment_defects, node: towers, below: 50}]
+  building_blocks: [InsPLAD, TTPLA, OpenDroneMap, MMDetection]
+  objectives: [Prevent failures, Inspection efficiency, Crew safety]
+
+- key: iot_plant
+  title: IoT Plant Failure
+  category: Industrial & Energy
+  summary: Sensor → edge gateway → MQTT → digital twin → anomaly → controller → maintenance, with a gateway clock fault and a drifting sensor.
+  unit: messages
+  impact: unobserved process minutes
+  nodes:
+    - [sensors, Field sensors, engineering, 6, sensor, Sensor network]
+    - [gateway, Edge gateway, engineering, 4, log, EdgeX]
+    - [mqtt, MQTT broker, operations, 5, log, Broker metrics]
+    - [twin, Digital twin, investigator, 4, graph, Eclipse Ditto]
+    - [anomaly, Anomaly detector, investigator, 4, kpi, Analytics]
+    - [controller, Process controller, engineering, 4, log, Controller]
+    - [maintenance, Maintenance, operations, 4, ticket, CMMS]
+    - [production, Production, finance, 6, kpi, MES]
+  edges: [[sensors, gateway], [gateway, mqtt], [mqtt, twin], [twin, anomaly], [anomaly, controller], [anomaly, maintenance], [controller, production], [maintenance, production]]
+  incident: {node: gateway, cause: Edge gateway clock skew reorders MQTT messages and corrupts twin state., signal: out-of-order timestamps}
+  extra_incidents:
+    - {node: sensors, tick: 12, severity: 0.5, cause: Temperature sensor TT-203 drifts +7 degrees after recalibration, signal: sensor disagrees with redundant pair}
+  secondary: twin
+  actions:
+    - [ntp, Fix gateway time sync, gateway, repair, 1500, 2, Restore ordering.]
+    - [trace_messages, Trace MQTT message timestamps, gateway, inspect, 200, 0, Compare device and broker time.]
+    - [recalibrate, Recalibrate TT-203, sensors, repair, 800, 2, Restore sensor accuracy.]
+    - [manual_rounds, Manual operator rounds, maintenance, boost, 900, 1, Human checks.]
+  rules:
+    - {name: false_alarms, at: 11, when: ["gateway.intrinsic<60"], target: anomaly, health: 40, message: Anomaly detector raises an alert storm from reordered data.}
+    - {name: bad_control, at: 21, when: ["anomaly.health<55", "!maintenance.boosted"], target: controller, health: 45, message: Controller acts on stale twin state; product quality drifts.}
+  decoys: [Network congestion on the plant Wi-Fi, A broker memory leak, A firmware update on PLCs]
+  agents: {engineering: IoT engineer, operations: Maintenance planner, investigator: Data scientist, finance: Production manager}
+  entity: {device: Sensor, asset: Machine, gateway: [GW-01, GW-02, GW-03], value: [0.0, 150.0]}
+  emits: [{signal: sensor_faults, node: anomaly, below: 55}]
+  consumes: [network_outage]
+  building_blocks: [EdgeX Foundry, Eclipse Ditto, Eclipse Mosquitto]
+  objectives: [Data trust, Process stability, Alert quality]
+
+- key: water_crisis
+  title: Water Infrastructure Crisis
+  category: Industrial & Energy
+  summary: Pipe break → pressure loss → contamination risk → hospitals and consumers affected → repair planning.
+  unit: service connections
+  impact: people without safe water
+  visual: aerial
+  nodes:
+    - [pipe, Trunk main, engineering, 4, map, GIS]
+    - [pressure, Pressure zones, engineering, 5, sensor, SCADA]
+    - [pumps, Pump stations, engineering, 4, sensor, Pump SCADA]
+    - [tanks, Storage tanks, operations, 4, sensor, Tank levels]
+    - [quality, Water quality, safety, 4, sensor, Quality analyzers]
+    - [hospitals, Hospitals, medical, 3, kpi, Critical users]
+    - [consumers, Consumers, finance, 6, kpi, Customer contacts]
+    - [repair, Repair crews, operations, 4, map, Work orders]
+    - [notices, Public notices, legal, 4, document, Communications]
+  edges: [[pipe, pressure], [pumps, pressure], [tanks, pressure], [pressure, quality], [pressure, hospitals], [quality, consumers], [quality, notices], [repair, pipe], [hospitals, consumers]]
+  incident: {node: pipe, cause: A trunk main breaks at a corroded valve junction during a pressure transient., signal: sudden flow increase and pressure drop}
+  secondary: quality
+  actions:
+    - [isolate_repair, Isolate and repair the main, pipe, repair, 2200, 5, Restore the trunk main.]
+    - [hydraulic_model, Run hydraulic model, pipe, inspect, 200, 0, Locate the break with EPANET-style analysis.]
+    - [tankers, Deploy water tankers to hospitals, hospitals, reroute, 1200, 2, Alternate supply for critical users.]
+    - [boil_notice, Issue boil-water notice, notices, repair, 400, 1, Protect public health.]
+    - [valve_crews, Extra valve crews, repair, boost, 900, 1, Faster isolation.]
+  rules:
+    - {name: backflow, at: 12, when: ["pipe.intrinsic<60", "!pumps.boosted"], target: quality, health: 38, message: Low pressure allows backflow; chlorine residual drops.}
+    - {name: hospital_impact, at: 21, when: ["pressure.health<55", "!hospitals.bypass"], target: hospitals, health: 42, message: Dialysis units report low water pressure.}
+  decoys: [A treatment-plant dosing fault, Fire-fighting demand, A meter reading error]
+  agents: {engineering: Network engineer, operations: Operations manager, safety: Water quality scientist, medical: Public health officer, finance: Customer service, legal: Regulator liaison}
+  entity: {connection: Customer, district: Location, pipe_id: Asset, pressure_bar: [0.5, 6.0]}
+  consumes: [blackout]
+  building_blocks: [EPA EPANET, WNTR]
+  objectives: [Public health, Service restoration, Regulatory compliance]
+
+# ---------------------------------------------------------------- Mobility & Drones
+- key: traffic_violations
+  title: Traffic-Rule Violations
+  category: Mobility & Drones
+  summary: Camera/drone → vehicle tracking → red-light, speed and wrong-way violations → congestion → incident response.
+  unit: vehicles
+  impact: unsafe crossings
+  visual: traffic
+  visual_lighting: {cameras: 0.55}
+  nodes:
+    - [signals, Signal timing plans, engineering, 5, log, Signal controller]
+    - [cameras, Enforcement cameras, engineering, 5, video, Camera network]
+    - [tracking, Vehicle tracking, investigator, 5, image, Tracking model]
+    - [violations, Violation detection, investigator, 4, image, Violation engine]
+    - [enforcement, Citations, legal, 4, document, Enforcement office]
+    - [congestion, Congestion, operations, 6, sensor, Loop detectors]
+    - [incidents, Incident response, emergency, 4, map, Traffic control centre]
+    - [public, Public trust & appeals, legal, 5, chat, Appeals portal]
+  edges: [[signals, violations], [cameras, tracking], [tracking, violations], [violations, enforcement], [violations, congestion], [congestion, incidents], [enforcement, public], [incidents, public]]
+  incident: {node: signals, cause: A corrupted timing plan shortens the amber phase to 2.1 s at 12 junctions., signal: red-light violations triple at 12 junctions}
+  extra_incidents:
+    - {node: cameras, tick: 14, severity: 0.5, cause: Night-time IR failure on camera C-07 lets tracking miss a wrong-way driver, signal: tracking confidence drops at night}
+  secondary: congestion
+  actions:
+    - [restore_plan, Restore certified timing plans, signals, repair, 1700, 3, Fix amber durations.]
+    - [audit_signals, Audit signal logs, signals, inspect, 200, 0, Compare phase durations to standards.]
+    - [void_citations, Void affected citations, enforcement, reroute, 800, 2, Avoid unfair penalties.]
+    - [fix_camera, Repair camera IR illuminator, cameras, repair, 700, 2, Restore night tracking.]
+    - [traffic_officers, Deploy traffic officers, incidents, boost, 1000, 1, Manual control.]
+  rules:
+    - {name: collisions, at: 12, when: ["signals.intrinsic<60", "!incidents.boosted"], target: congestion, health: 40, message: Two right-angle collisions; lanes closed.}
+    - {name: appeals, at: 22, when: ["enforcement.health<55"], target: public, health: 45, message: Appeals surge; media question camera fairness.}
+  decoys: [A holiday traffic surge, A detector loop fault, A new speed limit]
+  agents: {engineering: Traffic signal engineer, investigator: Video analytics lead, legal: Enforcement & appeals, operations: Traffic control centre, emergency: Incident response}
+  entity: {vehicle: Vehicle, junction: Location, speed_kmh: [10, 140], violation: [none, red_light, speeding, wrong_way]}
+  emits: [{signal: road_closures, node: congestion, below: 50}]
+  building_blocks: [SUMO, CARLA, ByteTrack, YOLO-family detectors]
+  objectives: [Road safety, Fair enforcement, Traffic flow]
+
+- key: traffic_crisis
+  title: Smart-City Traffic Crisis
+  category: Mobility & Drones
+  summary: Accident → road closure → congestion → ambulance routing → hospital load → police deployment.
+  unit: trips
+  impact: vehicle-hours of delay
+  visual: traffic
+  nodes:
+    - [accident, Motorway accident, emergency, 4, image, CCTV]
+    - [closure, Road closure, operations, 5, map, Traffic management]
+    - [congestion, Network congestion, operations, 6, sensor, Floating car data]
+    - [ambulance, Ambulance routing, emergency, 4, map, EMS CAD]
+    - [hospital, Hospital load, medical, 4, kpi, ED dashboard]
+    - [police, Police deployment, safety, 5, map, Police CAD]
+    - [transit, Transit detours, operations, 5, sensor, Transit AVL]
+    - [commuters, Commuters, finance, 6, chat, Journey planner]
+  edges: [[accident, closure], [closure, congestion], [congestion, ambulance], [ambulance, hospital], [accident, police], [police, congestion], [congestion, transit], [transit, commuters], [hospital, commuters]]
+  incident: {node: accident, cause: A jack-knifed tanker blocks all lanes of the ring motorway in both directions., signal: all lanes blocked at km 23}
+  secondary: ambulance
+  actions:
+    - [clear_scene, Clear scene with heavy recovery, accident, repair, 2000, 4, Reopen lanes.]
+    - [cctv, Review CCTV & sensors, accident, inspect, 200, 0, Assess blockage and hazards.]
+    - [green_wave, Signal green wave for ambulances, ambulance, reroute, 1100, 2, Priority routing.]
+    - [diversion, Publish diversion routes, closure, reroute, 900, 2, Spread traffic across the network.]
+    - [officers, Deploy traffic officers, police, boost, 1000, 1, Manual junction control.]
+  rules:
+    - {name: gridlock, at: 12, when: ["accident.intrinsic<60", "!closure.bypass"], target: ambulance, health: 40, message: Ambulances stuck in gridlock; response times double.}
+    - {name: ed_crowding, at: 22, when: ["ambulance.health<55"], target: hospital, health: 45, message: Delayed arrivals cluster; ED crowding rises.}
+  decoys: [A stadium event, A signal-controller outage, Heavy rain]
+  agents: {emergency: Emergency coordinator, operations: Traffic manager, medical: Hospital liaison, safety: Police commander, finance: Commuter communications}
+  entity: {vehicle: Vehicle, origin: Location, destination: Location, delay_min: [0, 95]}
+  emits: [{signal: hospital_surge, node: hospital, below: 55}, {signal: road_closures, node: congestion, below: 75}]
+  building_blocks: [SUMO, NetworkX, SimPy, Mesa]
+  objectives: [Emergency access, Network flow, Public information]
+
+- key: drone_mission
+  title: Multiple-Drone Mission
+  category: Mobility & Drones
+  summary: Twenty drones → task assignment → collision avoidance → battery failure → lost link → replanning.
+  unit: tasks
+  impact: uncovered mission tasks
+  visual: aerial
+  nodes:
+    - [planner, Task assignment, operations, 4, log, Mission planner]
+    - [batteries, Battery packs, engineering, 4, sensor, BMS telemetry]
+    - [fleet, Drone fleet, operations, 5, map, UTM]
+    - [comms, C2 datalink, engineering, 4, sensor, Link monitor]
+    - [avoidance, Collision avoidance, safety, 4, log, Detect-and-avoid]
+    - [sensors, Payload sensors, investigator, 4, image, Payload]
+    - [replanning, Replanning, operations, 4, log, Planner]
+    - [mission, Mission coverage, executive, 6, kpi, Mission dashboard]
+  edges: [[planner, fleet], [batteries, fleet], [fleet, comms], [fleet, avoidance], [comms, replanning], [avoidance, replanning], [fleet, sensors], [sensors, mission], [replanning, mission]]
+  incident: {node: batteries, cause: A batch of cells with high internal resistance triggers low-voltage cutoff on four drones., signal: voltage sag under load on pack batch 7}
+  extra_incidents:
+    - {node: comms, tick: 12, severity: 0.5, cause: Interference in the 2.4 GHz band drops the C2 link for drones in sector C, signal: link RSSI drops in sector C}
+  secondary: replanning
+  actions:
+    - [swap_packs, Swap batch-7 packs, batteries, repair, 1800, 3, Replace weak packs.]
+    - [bms_logs, Analyze BMS logs, batteries, inspect, 200, 0, Find the weak cell batch.]
+    - [rtl, Return affected drones to launch, fleet, reroute, 900, 2, Safe recovery of low-battery drones.]
+    - [band_switch, Switch C2 to 5.8 GHz, comms, repair, 800, 2, Restore the datalink.]
+    - [spare_drones, Launch spare drones, fleet, boost, 1200, 1, Extra coverage.]
+  rules:
+    - {name: forced_landings, at: 11, when: ["batteries.intrinsic<60", "!fleet.bypass"], target: avoidance, health: 40, message: Forced landings create airspace conflicts.}
+    - {name: coverage_gap, at: 21, when: ["replanning.health<55"], target: mission, health: 45, message: Search sectors left uncovered.}
+  decoys: [GPS spoofing, Wind above limits, A payload firmware bug]
+  agents: {operations: Mission commander, engineering: Drone engineer, safety: Flight safety officer, investigator: Payload analyst, executive: Mission owner}
+  entity: {drone: Vehicle, sector: [A, B, C, D, E], battery_pct: [10, 100], altitude_m: [30, 120]}
+  consumes: [network_outage]
+  building_blocks: [PX4 SITL, Gazebo, ROS 2, Mesa]
+  objectives: [Mission coverage, Airspace safety, Asset preservation]
+
+- key: drone_swarm
+  title: Large Drone Swarm Search
+  category: Mobility & Drones
+  summary: A cooperative swarm searches, inspects and maps an area while positioning degrades and priorities change.
+  unit: search cells
+  impact: unsearched area (km²)
+  visual: aerial
+  nodes:
+    - [controller, Swarm controller, operations, 4, log, Swarm manager]
+    - [localization, Positioning, engineering, 4, sensor, GNSS/RTK]
+    - [mesh, Mesh network, engineering, 5, graph, Mesh telemetry]
+    - [search, Search sectors, operations, 5, map, Search planner]
+    - [mapping, Mapping, investigator, 4, image, Photogrammetry]
+    - [detection, Target detection, investigator, 4, image, Detector]
+    - [ground, Ground control, safety, 4, chat, GCS]
+    - [rescue, Rescue teams, emergency, 4, map, Rescue coordination]
+  edges: [[controller, search], [localization, search], [mesh, controller], [search, mapping], [search, detection], [mapping, detection], [detection, ground], [ground, rescue]]
+  incident: {node: localization, cause: GNSS jamming degrades positioning accuracy in two search sectors., signal: horizontal accuracy worsens beyond 25 m}
+  secondary: mapping
+  actions:
+    - [rtk_fallback, Switch to RTK and visual odometry, localization, repair, 1800, 3, Restore positioning.]
+    - [jam_survey, Survey interference sources, localization, inspect, 200, 0, Locate the jammer area.]
+    - [reassign, Reassign sectors away from jamming, search, reroute, 1000, 2, Search unaffected areas first.]
+    - [relay, Deploy mesh relay drones, mesh, boost, 900, 1, Extra connectivity.]
+  rules:
+    - {name: map_errors, at: 11, when: ["localization.intrinsic<60", "!search.bypass"], target: mapping, health: 40, message: Orthomosaic misalignment creates duplicate targets.}
+    - {name: rescue_delay, at: 21, when: ["detection.health<55"], target: rescue, health: 45, message: Rescue teams dispatched to false positives.}
+  decoys: [Battery degradation, Heavy cloud cover, A detection-model bug]
+  agents: {operations: Swarm operator, engineering: Navigation engineer, investigator: Imagery analyst, safety: Ground control, emergency: Rescue coordinator}
+  entity: {drone: Vehicle, cell: 'seq:CELL', altitude_m: [20, 120], coverage_pct: [0, 100]}
+  building_blocks: [Crazyswarm2, PX4, ROS 2, Mesa]
+  objectives: [Find people fast, Avoid false dispatches, Swarm safety]
+
+- key: drone_inspection
+  title: Drone Visual Inspection
+  category: Mobility & Drones
+  summary: Flight → images → photogrammetry → asset detection → defect classification → report → work orders.
+  unit: assets
+  impact: undetected defects
+  visual: turbine
+  nodes:
+    - [flight, Flight plan, operations, 4, map, Flight planner]
+    - [images, Image capture, engineering, 5, image, Camera]
+    - [photogrammetry, Photogrammetry, engineering, 4, image, OpenDroneMap]
+    - [assets, Asset detection, investigator, 4, image, Detector]
+    - [defects, Defect classification, investigator, 4, image, Classifier]
+    - [report, Inspection report, legal, 4, document, Reporting]
+    - [work, Work orders, operations, 4, ticket, CMMS]
+  edges: [[flight, images], [images, photogrammetry], [photogrammetry, assets], [assets, defects], [defects, report], [report, work]]
+  incident: {node: images, cause: A wrong shutter setting causes motion blur on 30% of images., signal: image sharpness score falls}
+  secondary: defects
+  actions:
+    - [reshoot, Re-fly with corrected camera settings, images, repair, 1500, 3, Recapture sharp images.]
+    - [blur_check, Run image-quality checks, images, inspect, 150, 0, Quantify blur.]
+    - [manual_review, Manual expert review, defects, boost, 900, 1, Human classification.]
+  rules:
+    - {name: missed_defects, at: 11, when: ["images.intrinsic<60", "!defects.boosted"], target: report, health: 40, message: Report misses leading-edge erosion on two blades.}
+  decoys: [Low sun angle, Lens dirt, A GPS tagging error]
+  agents: {operations: Drone pilot, engineering: Imaging engineer, investigator: Inspection analyst, legal: Compliance reporting}
+  entity: {asset: Asset, drone: Vehicle, image: 'seq:IMG', sharpness: [0.1, 1.0]}
+  emits: [{signal: equipment_defects, node: report, below: 55}]
+  building_blocks: [OpenDroneMap, MMDetection, OpenCV]
+  objectives: [Detection accuracy, Flight efficiency, Report quality]
+
+- key: transport_network
+  title: Transportation Strategy Game
+  category: Mobility & Drones
+  summary: Rail, road and shipping networks serve changing demand; a corridor failure forces rerouting with economic trade-offs.
+  unit: shipments
+  impact: undelivered tonne-km
+  nodes:
+    - [rail, Rail corridor, engineering, 5, sensor, Signalling]
+    - [road, Road freight, operations, 5, map, Fleet telematics]
+    - [ports, Ports & shipping, operations, 4, transaction, Port community system]
+    - [depots, Depots & hubs, operations, 5, kpi, Hub dashboard]
+    - [demand, Freight demand, finance, 6, transaction, Booking system]
+    - [planning, Network planning, investigator, 4, graph, Planner]
+    - [economics, Network economics, finance, 5, kpi, Finance]
+    - [customers, Customer service, executive, 6, kpi, Service levels]
+  edges: [[rail, depots], [road, depots], [ports, depots], [demand, planning], [depots, planning], [planning, economics], [planning, customers], [economics, customers]]
+  incident: {node: rail, cause: A signalling failure closes the main rail corridor for the week., signal: signalling fault blocks corridor}
+  secondary: planning
+  actions:
+    - [repair_signals, Repair signalling, rail, repair, 2100, 5, Reopen the corridor.]
+    - [corridor_audit, Inspect corridor status, rail, inspect, 200, 0, Estimate outage duration.]
+    - [road_shift, Shift freight to road, road, boost, 1400, 1, Temporary road capacity.]
+    - [coastal, Coastal shipping reroute, ports, reroute, 1200, 2, Alternative mode.]
+  rules:
+    - {name: hub_congestion, at: 12, when: ["rail.intrinsic<60", "!road.boosted"], target: depots, health: 40, message: Hubs congest with stranded containers.}
+    - {name: margin_squeeze, at: 22, when: ["planning.health<55"], target: economics, health: 45, message: Rerouting costs erode network margin.}
+  decoys: [A fuel price spike, Port strike rumours, Seasonal demand]
+  agents: {engineering: Rail engineer, operations: Network operations, finance: Commercial manager, investigator: Network planner, executive: Transport CEO}
+  entity: {shipment: Order, origin: Location, mode: [rail, road, sea], tonnes: [1, 40]}
+  emits: [{signal: supplier_failure, node: depots, below: 50}]
+  consumes: [road_closures]
+  building_blocks: [OpenTTD, SUMO, NetworkX]
+  objectives: [Service level, Network margin, Emissions]
+
+# ---------------------------------------------------------------- Health & Life Sciences
+- key: pandemic_command
+  title: Pandemic Command Centre
+  category: Health & Life Sciences
+  summary: Infections → testing → hospitals → ICU occupancy → interventions → supply constraints, with an agent-based population.
+  unit: people
+  impact: severe cases
+  nodes:
+    - [infections, Community infections, medical, 6, sensor, Surveillance]
+    - [testing, Testing capacity, operations, 4, kpi, Lab network]
+    - [tracing, Contact tracing, investigator, 4, graph, Tracing system]
+    - [hospitals, Hospital admissions, medical, 4, kpi, Hospital reports]
+    - [icu, ICU occupancy, medical, 3, sensor, ICU census]
+    - [supplies, PPE & ventilators, operations, 4, transaction, Supply chain]
+    - [vaccination, Vaccination, emergency, 5, kpi, Immunization registry]
+    - [policy, Interventions & policy, legal, 4, document, Public health orders]
+    - [economy, Economic activity, finance, 6, kpi, Economic indicators]
+  edges: [[infections, testing], [testing, tracing], [tracing, hospitals], [infections, hospitals], [hospitals, icu], [supplies, icu], [vaccination, hospitals], [policy, economy], [icu, economy]]
+  incident: {node: infections, cause: A synthetic variant with 1.6x transmissibility is seeded at a transport hub., signal: test positivity doubles in a week}
+  secondary: hospitals
+  actions:
+    - [targeted_npi, Targeted interventions in hotspots, infections, repair, 2200, 4, Reduce transmission where it is concentrated.]
+    - [genomic, Genomic surveillance review, infections, inspect, 250, 0, Identify the variant signal.]
+    - [surge_testing, Surge testing capacity, testing, boost, 1200, 1, More tests for six minutes.]
+    - [field_icu, Open surge ICU beds, icu, boost, 1500, 1, Temporary critical-care capacity.]
+    - [booster, Booster campaign for high-risk groups, vaccination, reroute, 1400, 2, Protect vulnerable people.]
+  rules:
+    - {name: hospital_wave, at: 12, when: ["infections.intrinsic<60", "!testing.boosted"], target: hospitals, health: 40, message: Admissions grow 15% per day.}
+    - {name: ppe_shortage, at: 22, when: ["icu.health<55"], target: supplies, health: 45, message: PPE and ventilator stock below 7 days.}
+  decoys: [A reporting backlog, A seasonal influenza wave, A new testing method inflating counts]
+  agents: {medical: Chief medical officer, operations: Logistics lead, investigator: Epidemiologist, emergency: Vaccination lead, legal: Policy counsel, finance: Economic advisor}
+  entity: {person: 'seq:PER', age: [0, 95], district: Location, risk: [low, medium, high]}
+  emits: [{signal: hospital_surge, node: hospitals, below: 55}]
+  building_blocks: [Covasim, Mesa, SimPy]
+  objectives: [Minimise severe cases, Protect health system, Economic and social costs]
+
+- key: hospital_twin
+  title: Hospital Digital Twin
+  category: Health & Life Sciences
+  summary: Patient → triage → lab → diagnosis → bed → medication → discharge → readmission using Synthea-style synthetic patients.
+  unit: patients
+  impact: excess length-of-stay days
+  nodes:
+    - [admission, Admission, operations, 5, ticket, ADT]
+    - [triage, Triage, medical, 4, ticket, EHR]
+    - [labs, Laboratory, engineering, 4, log, LIS interface]
+    - [diagnosis, Diagnosis, medical, 4, document, EHR notes]
+    - [beds, Beds, operations, 5, kpi, Bed management]
+    - [medication, Medication, medical, 4, transaction, eMAR]
+    - [discharge, Discharge, operations, 5, ticket, Case management]
+    - [readmission, Readmissions, finance, 5, kpi, Quality metrics]
+  edges: [[admission, triage], [triage, labs], [labs, diagnosis], [diagnosis, beds], [diagnosis, medication], [beds, discharge], [medication, discharge], [discharge, readmission]]
+  incident: {node: labs, cause: An LIS interface upgrade drops HL7 result messages and triples lab turnaround., signal: result messages missing acknowledgements}
+  secondary: beds
+  actions:
+    - [fix_interface, Repair HL7 interface and resend, labs, repair, 1800, 3, Restore result delivery.]
+    - [interface_logs, Inspect interface engine logs, labs, inspect, 200, 0, Find dropped messages.]
+    - [phone_results, Phone critical results, diagnosis, reroute, 900, 2, Manual critical-result path.]
+    - [discharge_team, Discharge facilitation team, discharge, boost, 1000, 1, Speed safe discharges.]
+  rules:
+    - {name: los_increase, at: 11, when: ["labs.intrinsic<60", "!diagnosis.bypass"], target: beds, health: 40, message: Length of stay grows; admissions wait for beds.}
+    - {name: readmits, at: 21, when: ["discharge.health<55"], target: readmission, health: 45, message: Rushed discharges raise 30-day readmissions.}
+  decoys: [An influenza surge, Staff sickness, A pharmacy robot fault]
+  agents: {operations: Patient-flow manager, medical: Medical director, engineering: Clinical systems engineer, finance: Quality & finance}
+  entity: {patient: 'seq:PT', encounter: [emergency, inpatient, ambulatory], clinician: Employee, age: [0, 100]}
+  consumes: [hospital_surge, icu_pressure]
+  building_blocks: [Synthea, FHIR, SimPy]
+  objectives: [Patient safety, Flow, Readmissions]
+
+- key: genomics_pipeline
+  title: Genomics Workflow Failure
+  category: Health & Life Sciences
+  summary: Sample → sequencing → QC → alignment → variant calling → annotation → clinical review. Synthetic research workflow; not clinical advice.
+  unit: samples
+  impact: samples requiring re-analysis
+  visual: cells
+  nodes:
+    - [samples, Sample accessioning, operations, 5, ticket, LIMS]
+    - [sequencing, Sequencing run, engineering, 4, sensor, Sequencer metrics]
+    - [qc, Quality control, investigator, 4, kpi, MultiQC]
+    - [alignment, Alignment, engineering, 4, log, Nextflow logs]
+    - [calling, Variant calling, investigator, 4, log, DeepVariant]
+    - [annotation, Annotation, investigator, 4, document, Annotation DB]
+    - [review, Expert review, medical, 3, document, Review portal]
+    - [reports, Research reports, legal, 4, document, Reporting]
+  edges: [[samples, sequencing], [sequencing, qc], [qc, alignment], [alignment, calling], [calling, annotation], [annotation, review], [review, reports]]
+  incident: {node: alignment, cause: The pipeline aligns GRCh38 reads against a GRCh37 reference after a config merge., signal: mapping rate drops and coordinates look shifted}
+  extra_incidents:
+    - {node: sequencing, tick: 14, severity: 0.45, cause: Flow-cell lane 3 shows low Q30 from a reagent lot, signal: Q30 below threshold on lane 3}
+  secondary: calling
+  actions:
+    - [pin_reference, Pin reference build and rerun, alignment, repair, 1800, 4, Restore consistent coordinates.]
+    - [pipeline_audit, Audit pipeline parameters, alignment, inspect, 200, 0, Compare configs across runs.]
+    - [requeue_lane, Requeue lane 3 samples, sequencing, repair, 1000, 3, Resequence low-quality lane.]
+    - [extra_review, Add reviewer capacity, review, boost, 800, 1, More expert reviewers.]
+  rules:
+    - {name: false_variants, at: 12, when: ["alignment.intrinsic<60"], target: annotation, health: 40, message: Hundreds of spurious variants flood annotation.}
+    - {name: report_hold, at: 22, when: ["review.health<55"], target: reports, health: 45, message: Reports held pending re-analysis.}
+  decoys: [Sample contamination, A GPU driver issue, An annotation database update]
+  agents: {operations: Lab operations, engineering: Bioinformatics engineer, investigator: Bioinformatician, medical: Reviewing scientist, legal: Quality & compliance}
+  entity: {sample: 'seq:SMP', lane: [1, 2, 3, 4], q30_pct: [60.0, 97.0], coverage_x: [10, 60]}
+  building_blocks: [Nextflow, nf-core/sarek, DeepVariant, msprime]
+  objectives: [Result correctness, Turnaround time, Traceability]
+
+- key: population_genetics
+  title: Genetic Population Simulation
+  category: Health & Life Sciences
+  summary: Populations → inheritance → mutations → disease-risk cohorts → association analysis, with a hidden stratification trap.
+  unit: individuals
+  impact: spurious associations
+  nodes:
+    - [populations, Ancestral populations, investigator, 5, graph, Demography model]
+    - [migration, Migration, investigator, 4, graph, Demography model]
+    - [inheritance, Inheritance, investigator, 5, graph, Tree sequences]
+    - [mutations, Mutations, investigator, 5, sensor, Mutation model]
+    - [cohorts, Cohort sampling, operations, 4, transaction, Cohort registry]
+    - [gwas, Association analysis, engineering, 4, kpi, GWAS pipeline]
+    - [findings, Findings, legal, 4, document, Publication review]
+  edges: [[populations, migration], [populations, inheritance], [migration, inheritance], [inheritance, mutations], [mutations, cohorts], [cohorts, gwas], [gwas, findings]]
+  incident: {node: cohorts, cause: Cases are over-sampled from one ancestry group so population structure confounds associations., signal: genomic inflation factor rises to 1.4}
+  secondary: gwas
+  actions:
+    - [rebalance, Rebalance cohort and add ancestry PCs, cohorts, repair, 1600, 3, Correct stratification.]
+    - [pca, Run ancestry PCA, cohorts, inspect, 200, 0, Reveal structure.]
+    - [replicate, Replication cohort, gwas, reroute, 1200, 2, Validate in an independent cohort.]
+  rules:
+    - {name: false_hits, at: 12, when: ["cohorts.intrinsic<60", "!gwas.bypass"], target: findings, health: 40, message: Top hits track ancestry rather than disease.}
+  decoys: [Genotyping batch effects, Low minor-allele frequency, Phenotype misclassification]
+  agents: {investigator: Population geneticist, operations: Cohort manager, engineering: Statistical geneticist, legal: Research integrity}
+  entity: {individual: 'seq:IND', population: [POP-A, POP-B, POP-C], case: [0, 1], alt_alleles: [0, 2]}
+  building_blocks: [msprime, tskit, stdpopsim]
+  objectives: [Valid findings, Statistical power, Equity of representation]
+
+- key: drug_discovery
+  title: Drug Discovery Workflow
+  category: Health & Life Sciences
+  summary: Molecules → filtering → descriptors → ML → toxicity/property prediction → candidate ranking → assays.
+  unit: compounds
+  impact: wasted assay slots
+  visual: cells
+  nodes:
+    - [library, Compound library, investigator, 6, transaction, Registry]
+    - [filtering, Drug-likeness filters, investigator, 5, log, Filter pipeline]
+    - [descriptors, Descriptor pipeline, engineering, 4, log, Featurizer]
+    - [model, Property model, investigator, 4, kpi, Model registry]
+    - [toxicity, Toxicity prediction, safety, 4, kpi, Tox model]
+    - [ranking, Candidate ranking, operations, 4, document, Portfolio board]
+    - [assays, Wet-lab assays, operations, 3, image, Assay imaging]
+    - [portfolio, Portfolio value, finance, 5, kpi, R&D finance]
+  edges: [[library, filtering], [filtering, descriptors], [descriptors, model], [descriptors, toxicity], [model, ranking], [toxicity, ranking], [ranking, assays], [assays, portfolio]]
+  incident: {node: descriptors, cause: The featurizer silently strips stereochemistry so enantiomers look identical., signal: duplicate fingerprints across distinct compounds}
+  secondary: model
+  actions:
+    - [fix_featurizer, Fix stereo-aware featurization, descriptors, repair, 1700, 3, Restore chirality information.]
+    - [fingerprint_audit, Audit fingerprints, descriptors, inspect, 200, 0, Find duplicated representations.]
+    - [expert_triage, Medicinal-chemist triage, ranking, boost, 900, 1, Expert review of rankings.]
+  rules:
+    - {name: bad_picks, at: 12, when: ["descriptors.intrinsic<60", "!ranking.boosted"], target: assays, health: 40, message: Assays spent on inactive enantiomers.}
+  decoys: [Assay plate edge effects, An outdated toxicity model, Solubility measurement errors]
+  agents: {investigator: Computational chemist, engineering: Cheminformatics engineer, safety: Toxicologist, operations: Discovery project lead, finance: Portfolio manager}
+  entity: {compound: 'seq:CMP', scaffold: [indole, piperazine, pyrimidine, benzimidazole], mw: [150.0, 650.0], logp: [-1.0, 6.0]}
+  building_blocks: [RDKit, DeepChem]
+  objectives: [Hit quality, Safety, Assay efficiency]
+
+- key: pharmacology
+  title: Pharmacology / Virtual Patients
+  category: Health & Life Sciences
+  summary: Compound → dosage → organs → concentration → efficacy and adverse-response simulation in virtual patients. Synthetic research only.
+  unit: virtual patients
+  impact: adverse-event risk score
+  nodes:
+    - [compound, Compound properties, investigator, 4, document, Compound dossier]
+    - [dosing, Dosing regimen, medical, 4, document, Protocol]
+    - [absorption, Absorption, investigator, 4, sensor, PBPK model]
+    - [distribution, Organ distribution, investigator, 4, sensor, PBPK model]
+    - [metabolism, Liver metabolism, investigator, 4, sensor, PBPK model]
+    - [concentration, Plasma concentration, medical, 4, sensor, PK simulation]
+    - [efficacy, Efficacy, medical, 4, kpi, PD model]
+    - [adverse, Adverse responses, safety, 4, kpi, Safety model]
+    - [trial, Virtual trial decision, executive, 4, document, Study team]
+  edges: [[compound, absorption], [dosing, absorption], [absorption, distribution], [distribution, metabolism], [metabolism, concentration], [concentration, efficacy], [concentration, adverse], [efficacy, trial], [adverse, trial]]
+  incident: {node: metabolism, cause: A CYP3A4-inhibitor co-medication subgroup has doubled exposure that the base model ignores., signal: exposure outliers in a patient subgroup}
+  secondary: adverse
+  actions:
+    - [ddi_model, Add drug-drug interaction model, metabolism, repair, 1800, 3, Model the co-medication effect.]
+    - [subgroup, Subgroup exposure analysis, metabolism, inspect, 200, 0, Find exposure outliers.]
+    - [dose_adjust, Dose adjustment for subgroup, dosing, reroute, 900, 2, Lower exposure in affected patients.]
+  rules:
+    - {name: toxicity, at: 12, when: ["metabolism.intrinsic<60", "!dosing.bypass"], target: adverse, health: 38, message: Simulated QT prolongation events in the subgroup.}
+  decoys: [Renal impairment, Food effects on absorption, Formulation variability]
+  agents: {investigator: PK scientist, medical: Clinical pharmacologist, safety: Drug safety physician, executive: Study lead}
+  entity: {patient: 'seq:VP', weight_kg: [45.0, 120.0], comedication: [none, CYP3A4_inhibitor, CYP3A4_inducer], dose_mg: [25, 400]}
+  building_blocks: [PK-Sim, MoBi, Pharmpy]
+  objectives: [Safety margin, Efficacy, Dose simplicity]
+
+# ---------------------------------------------------------------- Mega Crisis
+- key: mega_crisis
+  title: Mega Crisis World
+  category: Mega Crisis
+  summary: Turbine anomaly → IoT telemetry → cloud analytics failure → cyber compromise → grid instability → drone inspection → visual defect identification → maintenance dispatch → supply shortage → executive decisions.
+  unit: work items
+  impact: enterprise impact index
+  budget: 12000
+  visual: turbine
+  visuals: {drones: aerial, grid: tower, iot: thermal}
+  nodes:
+    - [turbine, Turbine fleet, engineering, 5, sensor, CMS]
+    - [iot, IoT telemetry, engineering, 5, image, Edge gateways]
+    - [analytics, Cloud analytics, engineering, 4, log, Analytics platform]
+    - [cyber, Security operations, security, 4, log, SIEM]
+    - [grid, Grid stability, operations, 5, image, Grid SCADA]
+    - [drones, Drone inspection, operations, 4, video, Drone ops]
+    - [vision, Visual defect identification, investigator, 4, image, Vision model]
+    - [maintenance, Maintenance dispatch, operations, 4, ticket, CMMS]
+    - [supply, Spare-parts supply, finance, 4, transaction, ERP]
+    - [executive, Executive decisions, executive, 4, email, Crisis committee]
+  edges: [[turbine, iot], [iot, analytics], [cyber, analytics], [analytics, grid], [turbine, grid], [grid, drones], [drones, vision], [vision, maintenance], [supply, maintenance], [maintenance, executive], [grid, executive]]
+  incident: {node: turbine, cause: Blade-root cracks on a turbine batch raise vibration across the fleet., signal: fleet-wide vibration anomaly}
+  extra_incidents:
+    - {node: cyber, tick: 12, severity: 0.6, cause: An attacker uses a vendor VPN account to tamper with analytics pipelines, signal: anomalous vendor VPN sessions}
+    - {node: supply, tick: 20, severity: 0.55, cause: The blade-root bolt supplier cannot deliver for six weeks, signal: purchase order confirmations delayed}
+  secondary: analytics
+  actions:
+    - [curtail, Curtail and inspect affected turbines, turbine, repair, 2400, 5, Stop crack growth.]
+    - [fleet_analysis, Fleet vibration analysis, turbine, inspect, 250, 0, Identify the affected batch.]
+    - [revoke_vendor, Revoke vendor access and rebuild pipeline, cyber, repair, 1600, 3, Remove the attacker.]
+    - [grid_reserve, Procure grid reserves, grid, boost, 1300, 1, Stabilize frequency.]
+    - [alt_parts, Qualify alternate bolt supplier, supply, repair, 1400, 3, Restore parts supply.]
+    - [manual_drone_review, Manual drone image review, vision, boost, 800, 1, Human defect review.]
+  rules:
+    - {name: blind_analytics, at: 14, when: ["cyber.intrinsic<60", "!analytics.bypass"], target: vision, health: 40, message: Tampered analytics hide defect alerts from the vision pipeline.}
+    - {name: grid_penalty, at: 18, when: ["turbine.intrinsic<60"], target: grid, health: 45, message: Unplanned generation loss triggers grid balancing penalties.}
+    - {name: board_pressure, at: 26, when: ["maintenance.health<55"], target: executive, health: 45, message: Regulator requests a fleet safety statement within 24 hours.}
+  decoys: [Icing across the wind farm, A SCADA historian outage, A transformer fault at the substation]
+  agents: {engineering: Chief engineer, security: CISO, operations: Operations director, investigator: Vision analytics lead, finance: Supply-chain director, executive: CEO}
+  entity: {asset: Machine, sensor: Sensor, part: Product, supplier: Supplier}
+  emits: [{signal: power_loss, node: grid, below: 55}, {signal: supplier_failure, node: supply, below: 55}]
+  building_blocks: [OpenFAST, EdgeX Foundry, CALDERA, Grid2Op, OpenDroneMap, MMDetection, LangGraph]
+  objectives: [Safety, Grid reliability, Security, Cost]

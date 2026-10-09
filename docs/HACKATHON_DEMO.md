@@ -1,0 +1,75 @@
+# SimForge AI — one Scenario Lab, two roles, four minutes
+
+## Promise and boundaries
+
+We help staff move from passive slides or risky exploration of live tools to practising evidence-based decisions in a self-contained mock-data environment.
+
+**Admin / Trainer** creates, checks and publishes. **Learner** runs the exercise and explains the result. No third account, SOP factory page or advanced builder page is required.
+
+Use the supplier-disruption exercise: dispatch → receiving → inventory → production → delivery. The environment is illustrative training, not an exact replica or validated physical twin. Synthetic savings are not proven customer savings.
+
+## Prepare
+
+- Start the Python app with the built React UI; SQLite stores scenarios, data, runs and decisions.
+- Open two independent browser profiles/private contexts: admin and learner. Tabs in the same profile share sign-in.
+- In Scenario Lab, select Codex CLI and check the actual connection/model before the presentation.
+- Codex is always primary. For an unavailable CLI/sign-in/quota, explicitly choose Use OpenAI API backup and configure the key/model, or provision the private file in [README](../README.md#persistent-api-backup-configuration). Only the Generate action invokes the backup; no automatic retry or charge occurs when switching. This is API authoring, not Codex CLI activity.
+- Prepare a labelled fallback draft because real generation may exceed the presentation window. Do not present an offline template as live Codex generation.
+- Use 60 work items, seed 2026 and a 30-minute simulated horizon. Playback at 3× advances simulated time; it is not a 30-minute wall-clock presentation.
+- Pause while explaining data. Keep optional 3D/ML tools out of the main demo.
+
+## 0:00–0:30 — problem and roles
+
+Show Overview: “Staff need to practise real business decisions without touching live systems. The Admin / Trainer creates a safe exercise; the Learner investigates linked mock records and chooses a response.”
+
+## 0:30–1:20 — one Scenario Lab
+
+Select Scenario Lab. One page contains **1 · Create an exercise** and **2 · Check and publish**.
+
+Use a prompt such as:
+
+> Create a synthetic supplier disruption exercise. Link dispatch, receiving, inventory, production and delivery. A dispatch-confirmation fault should cause queues and late orders. Include an evidence-led learning mission and safe investigation, repair and alternate-route decisions.
+
+Generate with the selected engine. Show real job progress if ready. If it is still running, transparently inspect a previously generated draft, or select Offline template and say so. Supplier disruption is the default tested template.
+
+Inspect the draft's source, mission, workflow and checks. Click Publish & notify learners. Explain that the output is a schema-constrained definition validated in Python, never executable generated code.
+
+## 1:20–2:50 — learner generates, investigates and acts
+
+Switch to Learner. Open Notifications → the new scenario.
+
+Show the mission. Generate 60 work items. Inspect work_items/workflow_steps and relationship checks, then Enter simulation with these datasets.
+
+Show a record flowing through the mock application. Start playback and pause near the incident. Inspect the record and Live datasets → live_telemetry/source_events.
+
+Use Diagnosis to identify the first failing system and an evidence-supported cause. In World map → Decision desk, commit an appropriate repair. Explain its target, synthetic cost and delay. Resume or step to observe consequences, then Complete run.
+
+These records were generated for this scenario and saved, not fetched from a live client system. Training datasets → Scenario-generated datasets can reopen them later.
+
+## 2:50–3:35 — measurable, explainable outcome
+
+Show the debrief's revealed cause, decision ledger and same-workload no-intervention comparison. Export the report if time permits.
+
+Distinguish simulation evidence from customer validation. Propose a small pilot measuring diagnosis time, pre/post assessment improvement and trainer preparation minutes per approved exercise. Use comparable baselines and feedback; claim no unmeasured customer benefit.
+
+## 3:35–4:00 — coaching and responsible engineering
+
+Return to the same Admin / Trainer → Assignments & results. Assign guidance, or open the learner's completed run in Observation mode. Clock, diagnosis and decision controls cannot take over learner-owned work.
+
+Close: “Codex helped build this application and can author checked scenarios. A deterministic CPU simulator generates linked mock evidence and executes consequences. Humans control publication and learners control their responses.”
+
+The API route is a deployment fallback, not a claim that every runtime inference uses Codex. Show actual Codex-generated work if claiming Codex leverage.
+
+## Production boundary
+
+This is a production-minded pilot. It includes server-side role/ownership checks, logout, bounded inputs, versioned updates, publication transactions, source provenance, audit, retries and reproducible runs.
+
+Before deployment, complete the HTTPS, identity, backup/restore, retention, monitoring/load and domain-validation work in [DEPLOYMENT.md](DEPLOYMENT.md). UI-entered API keys remain only in backend memory; use server secrets for persistence. No passing test suite constitutes production certification.
+
+## Regression evidence
+
+- Backend tests cover two-role publication/notification, owner-only decisions, admin previews, API structured outputs, no-CLI operation, secret-safe errors and migration.
+- roles.spec.js covers the complete admin/learner handoff and supplier diagnosis/action/debrief.
+- scenario-lab.spec.js covers one-page navigation, write-only API-key UI and unified ML discovery; it never requests real paid API generation.
+- navigation.spec.js and training-navigation.spec.js cover durable routes, case files, slow/out-of-order requests and retries.
+- API tests use a mocked provider. Real Codex generation remains opt-in. Respect unchanged login throttling when running large browser batches.

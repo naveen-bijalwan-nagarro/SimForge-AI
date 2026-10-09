@@ -1,0 +1,33 @@
+# Example: a Minecraft-style block-building world (environment_style: voxel).
+- key: voxel_settlement
+  title: Voxel Settlement Supply Crisis
+  category: Agentic Simulation Lab
+  environment_style: voxel
+  summary: A block-building settlement depends on mines, smelters, crafting workshops and storage. A collapsed mine tunnel starves the crafting economy while villagers wait for tools and shelter.
+  unit: crafting jobs
+  impact: villager-hours without tools
+  nodes:
+    - [mine, Iron mine, engineering, 5, sensor, Mine cart telemetry]
+    - [smelter, Smelter furnaces, operations, 4, sensor, Furnace gauges]
+    - [workshop, Crafting workshops, operations, 5, log, Crafting queue]
+    - [storage, Chest storage, operations, 6, transaction, Inventory ledger]
+    - [builders, Builder crews, operations, 5, map, Build planner]
+    - [traders, Villager traders, finance, 4, transaction, Trade ledger]
+    - [villagers, Villager wellbeing, executive, 8, chat, Village chat]
+  edges: [[mine, smelter], [smelter, workshop], [workshop, storage], [storage, builders], [storage, traders], [builders, villagers], [traders, villagers]]
+  incident: {node: mine, cause: A tunnel collapse on level 3 blocks the richest iron vein and traps a cart line., signal: iron ore deliveries stop}
+  secondary: workshop
+  actions:
+    - [clear_tunnel, Shore up and clear the collapsed tunnel, mine, repair, 2000, 4, Restore iron ore extraction.]
+    - [survey_mine, Survey mine levels, mine, inspect, 200, 0, Find where deliveries stopped.]
+    - [trade_iron, Buy iron from a neighbouring village, smelter, reroute, 1400, 2, Import ore at a premium.]
+    - [extra_furnaces, Build extra furnaces, smelter, boost, 1100, 1, Temporary smelting capacity.]
+    - [ration_tools, Ration tools to critical builds, storage, contain, 500, 1, Protect shelters but pause trading.]
+  rules:
+    - {name: tool_shortage, at: 12, when: ["mine.intrinsic<60", "!smelter.bypass"], target: builders, health: 42, message: Builders run out of pickaxes; shelter construction stalls.}
+    - {name: trade_slump, at: 22, when: ["storage.health<55"], target: traders, health: 50, message: Traders leave the village market; emerald income drops.}
+  decoys: [A creeper attack damaged the workshop, Night-time mob spawns slowed villagers, A redstone circuit fault stopped the furnaces]
+  agents: {engineering: Mine foreman, operations: Village quartermaster, finance: Trade master, executive: Village elder}
+  entity: {job: 'seq:CRAFT', item: [pickaxe, shovel, door, bed, rail], villager: Employee, blocks: [4, 64]}
+  building_blocks: [SimPy, NetworkX, Mesa]
+  objectives: [Keep villagers housed, Restore tool supply, Keep trade alive]

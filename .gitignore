@@ -1,0 +1,18 @@
+.venv/
+node_modules/
+frontend/dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.env.*
+config/*.local.toml
+*.local.toml
+data/
+*.log
+legacy/**/instance/
+artifacts/
+
+# Codex sandbox drafts are working files; submit them for approval instead of committing
+codex_sandbox/drafts/*
+!codex_sandbox/drafts/.gitkeep
