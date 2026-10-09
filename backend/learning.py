@@ -12,10 +12,11 @@ from pydantic import BaseModel, Field
 
 from . import store
 
-VERSION = "objective-learning-v3"
+VERSION = "objective-learning-v4"
+LEGACY_VERSION = "objective-learning-v3"
 
 # Parallel questions: compare reasoning rather than repeat an identical quiz.
-QUESTIONS = {
+LEGACY_QUESTIONS = {
     "before": [
         ("Orders are late. Dispatch queues grow while downstream systems are healthy. What do you inspect first?",
          ["The customer dashboard only", "Dispatch records and the next handoff", "Every system at once"], 1),
@@ -40,14 +41,11 @@ class Answers(BaseModel):
     choices: list[int] = Field(min_length=3, max_length=3)
 
 
-def question_set(phase, p=None):
-    """Workflow-specific objective checks for admin-generated exercises.
-
-    Prompts never quote the hidden fault/cause or privileged authoring content.
-    """
+def _legacy_question_set(phase, p):
+    """Keep v3 questions and keys stable for assessments already in progress."""
     spec = (p or {}).get("spec", {})
     if not str(spec.get("key", "")).startswith("custom_"):
-        return QUESTIONS[phase]
+        return LEGACY_QUESTIONS[phase]
     nodes = [n.get("label") or n.get("id", "system") for n in spec.get("nodes", [])]
     first = nodes[0] if nodes else "the first handoff"
     later = nodes[-2] if len(nodes) >= 2 else "a downstream handoff"
@@ -68,6 +66,93 @@ def question_set(phase, p=None):
         ("Your response beats the same-workload no-action run. What is supported?",
          ["Better results under these simulation assumptions", "Guaranteed real financial savings", "Certified job competence"], 0),
     ]
+
+
+def assessment_version(p):
+    """A baseline fixes the version used by its later post-check."""
+    data = (p or {}).get("learning_check") or {}
+    for phase in ("before", "after"):
+        recorded = data.get(phase)
+        if recorded:
+            return recorded.get("assessment_version") or LEGACY_VERSION
+    return VERSION
+
+
+def _visible_text(value, fallback, hidden):
+    """Use only short, learner-visible labels and avoid repeating a hidden cause."""
+    if not isinstance(value, str):
+        return fallback
+    value = " ".join(value.split())[:100]
+    if not value or (hidden and hidden.casefold() in value.casefold()):
+        return fallback
+    return value
+
+
+def _workflow_context(p):
+    spec = (p or {}).get("spec") or {}
+    hidden = str((spec.get("incident") or {}).get("cause") or "").strip()
+    title = _visible_text(spec.get("title"), "this workflow", hidden)
+    role = _visible_text(
+        (spec.get("learning") or {}).get("role") or ((p or {}).get("briefing") or {}).get("role"),
+        "incident coordinator", hidden,
+    )
+    unit = _visible_text(spec.get("unit"), "work items", hidden)
+    nodes = spec.get("nodes") or []
+    labels = {
+        str(node.get("id")): _visible_text(node.get("label"), "a workflow step", hidden)
+        for node in nodes if isinstance(node, dict) and node.get("id")
+    }
+    ordered = list(labels.values())
+    pairs = [
+        (labels[str(edge.get("source"))], labels[str(edge.get("target"))])
+        for edge in spec.get("edges") or []
+        if isinstance(edge, dict) and str(edge.get("source")) in labels
+        and str(edge.get("target")) in labels
+    ]
+    first = pairs[0] if pairs else (
+        ordered[0] if ordered else "an upstream step",
+        ordered[1] if len(ordered) > 1 else "the next handoff",
+    )
+    later = pairs[-1] if len(pairs) > 1 else (
+        ordered[-2] if len(ordered) > 1 else first[0],
+        ordered[-1] if len(ordered) > 1 else first[1],
+    )
+    return title, role, unit, first, later
+
+
+def _current_question_set(phase, p):
+    """Contextual reasoning checks, independent of the actual incident answer."""
+    title, role, unit, (first, next_step), (later, last_step) = _workflow_context(p)
+    if phase == "before":
+        return [
+            (f"In {title}, as the {role}, suppose a queue of {unit} grows between {first} and {next_step}. What would you inspect first?",
+             ["Only the final dashboard", f"Records from {first} and the {next_step} handoff", "Every system at once"], 1),
+            (f"Before changing the workflow at {first}, what should you compare?",
+             ["Evidence, target, risk, response delay and cost", "Only the quickest-looking action", "Only the final score"], 0),
+            (f"Which comparison best estimates whether your response in {title} helped?",
+             ["A different workload", "Another learner's best run", "The same seed and workload with no action"], 2),
+        ]
+    return [
+        (f"In an unseen variation of {title}, {later} completes its handoff but {last_step} has a new queue of {unit}. What would you inspect next?",
+         ["Change every system's capacity", "Only the final dashboard", f"The {later} handoff and {last_step} source records"], 2),
+        (f"In that variation, records identify a recoverable problem at {last_step}. Which response is justified?",
+         ["Restart every system", "Verify and target that problem after checking response delay and cost", "Ignore the evidence and reroute all work"], 1),
+        (f"Your response improves the outcome for {unit} against the same-workload no-action run. What does that show?",
+         ["A benefit under these simulation assumptions", "Guaranteed real customer savings", "Certified long-term job competence"], 0),
+    ]
+
+
+def question_set(phase, p=None):
+    """Return the versioned question bank, using frozen keys after first submission."""
+    if phase not in LEGACY_QUESTIONS:
+        raise ValueError("Unknown learning-check phase")
+    data = (p or {}).get("learning_check") or {}
+    frozen = (data.get("_question_sets") or {}).get(phase)
+    if frozen:
+        return [(item["prompt"], item["options"], item["answer"]) for item in frozen]
+    if assessment_version(p) != VERSION:
+        return _legacy_question_set(phase, p)
+    return _current_question_set(phase, p)
 
 
 def questions(phase, p=None):
@@ -165,7 +250,7 @@ def view(row):
                 and not p.get("diagnosis") and not p.get("parent"))
     objective = objective_result(p)
     return dict(
-        version=VERSION, before=before, after=after,
+        version=assessment_version(p), before=before, after=after,
         baseline_open=eligible and not before,
         post_open=complete and not after,
         before_questions=questions("before", p) if eligible else [],
@@ -176,7 +261,7 @@ def view(row):
         score_components=objective["components"] if objective else None,
         max_points=objective["max_points"] if objective else dict(knowledge=50, diagnosis=25, evidence=15, decision=10),
         learning_journey=learning_journey(p),
-        answer_keys={phase: [q[2] for q in question_set(phase, p)] for phase in QUESTIONS} if after else None,
+        answer_keys={phase: [q[2] for q in question_set(phase, p)] for phase in LEGACY_QUESTIONS} if after else None,
         note="Objective training evidence only. Measure transfer and retention with an unseen exercise.",
     )
 
@@ -190,7 +275,7 @@ def install(app, user, admin, resource):
 
     @app.post("/api/runs/{rid}/learning-check/{phase}")
     def submit(rid: str, phase: str, body: Answers, current=Depends(user)):
-        if phase not in QUESTIONS:
+        if phase not in LEGACY_QUESTIONS:
             raise HTTPException(404, "Unknown learning-check phase")
         row = main.writable_run(rid, current)
         main.clock_tick(row)
@@ -198,13 +283,22 @@ def install(app, user, admin, resource):
         state = view(row)
         if not state["baseline_open" if phase == "before" else "post_open"]:
             raise HTTPException(409, "This check is closed or already submitted")
-        if any(c < 0 or c >= len(q[1]) for c, q in zip(body.choices, question_set(phase, p))):
+        selected_questions = question_set(phase, p)
+        if any(c < 0 or c >= len(q[1]) for c, q in zip(body.choices, selected_questions)):
             raise HTTPException(422, "Select one listed answer for each question")
-        correct = sum(c == q[2] for c, q in zip(body.choices, question_set(phase, p)))
-        p.setdefault("learning_check", {})[phase] = dict(
+        correct = sum(c == q[2] for c, q in zip(body.choices, selected_questions))
+        version = assessment_version(p)
+        data = p.setdefault("learning_check", {})
+        if version == VERSION and not data.get("_question_sets"):
+            data["_question_sets"] = {
+                name: [dict(prompt=q[0], options=q[1], answer=q[2])
+                       for q in _current_question_set(name, p)]
+                for name in LEGACY_QUESTIONS
+            }
+        data[phase] = dict(
             choices=body.choices, correct=correct, total=3,
             score=round(100 * correct / 3, 1), questions=questions(phase, p),
-            submitted_at=time.time(), tick=p["tick"], assessment_version=VERSION,
+            submitted_at=time.time(), tick=p["tick"], assessment_version=version,
         )
         main.save_run(row, current, "learning." + phase)
         return view(store.get(rid, "run"))

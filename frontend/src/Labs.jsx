@@ -12,6 +12,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { api } from "./client";
+import { LearningCheck } from "./LearningCheck";
 import { CyGraph, EChart, lineOption } from "./viz";
 
 const fmt = (v, d = 3) =>
@@ -676,7 +677,7 @@ export function LabCatalog({ user, onOpen, query = "" }) {
               <h3>{s.title}</h3>
               <p>{s.story}</p>
               <div className="card-bottom">
-                <span>Start challenge</span>
+                <span>Starting check · Investigate · Post-check</span>
                 <ArrowRight size={16} />
               </div>
             </button>
@@ -790,6 +791,8 @@ export function LabCatalog({ user, onOpen, query = "" }) {
 function LabWorkspace({ id, user, onBack }) {
   const [lab, setLab] = useState(null);
   const [stage, setStage] = useState("production");
+  const [checkState, setCheckState] = useState(null);
+  const [skipBaseline, setSkipBaseline] = useState(false);
   const [probes, setProbes] = useState({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -834,7 +837,7 @@ function LabWorkspace({ id, user, onBack }) {
       evaluate: "offline",
       deploy: "registry",
     }[stage];
-    if (auto && lab) probe(auto, false);
+    if (auto && lab?.probes) probe(auto, false);
   }, [stage, lab?.id]);
   if (!lab)
     return (
@@ -844,10 +847,88 @@ function LabWorkspace({ id, user, onBack }) {
       </p>
     );
   const minutes = (lab.probes_used || []).reduce(
-    (t, p) => t + (lab.probes.find((x) => x.name === p)?.minutes || 0),
+    (t, p) => t + ((lab.probes || []).find((x) => x.name === p)?.minutes || 0),
     0,
   );
   const submitted = lab.submission;
+  const labReady = Boolean(lab.profile && lab.stages && lab.monitored);
+  const observing = lab.owner !== user.id;
+  const baselineGate =
+    !observing &&
+    !submitted &&
+    !skipBaseline &&
+    (!checkState || checkState.baseline_open);
+  const check = (
+    <LearningCheck
+      resourceId={id}
+      resourcePath={`/mllab/labs/${id}`}
+      kind="ml"
+      completed={Boolean(submitted)}
+      activityKey={`${(lab.probes_used || []).length}:${skipBaseline}`}
+      observing={observing}
+      expanded
+      onStateChange={setCheckState}
+      onSaved={async () => {
+        if (!labReady) await load();
+      }}
+    />
+  );
+  if (baselineGate || !labReady)
+    return (
+      <>
+        <Heading
+          eyebrow={`ML FAILURE LAB · ${lab.config.group.toUpperCase()}`}
+          title={lab.config.title}
+          subtitle={lab.config.story}
+        >
+          <button className="secondary" onClick={onBack}>
+            All challenges
+          </button>
+        </Heading>
+        {error && <p className="error-banner">{error}</p>}
+        {check}
+        {baselineGate ? (
+          <section className="panel padded">
+            <h3>Start with what you know</h3>
+            <p>
+              Answer the starting knowledge check before viewing model signals
+              to compare your knowledge after practice. You can continue
+              without it, but knowledge change will be unavailable.
+            </p>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  setCheckState(
+                    await api(`/mllab/labs/${id}/learning-check/skip`, {}),
+                  );
+                  await load();
+                  setSkipBaseline(true);
+                } catch (e) {
+                  setError(e.message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Continue without starting check
+            </button>
+          </section>
+        ) : (
+          <section className="panel padded" role="status">
+            <p>Loading model workspace…</p>
+            {error && (
+              <button className="secondary" onClick={load}>
+                Retry loading workspace
+              </button>
+            )}
+          </section>
+        )}
+      </>
+    );
   const stageProbe = {
     raw: "raw",
     eda: "eda",
@@ -868,6 +949,7 @@ function LabWorkspace({ id, user, onBack }) {
         </button>
       </Heading>
       {error && <p className="error-banner">{error}</p>}
+      {check}
       <div
         className="stepper"
         role="tablist"
@@ -1250,6 +1332,7 @@ export function MLLab({ user, openLab, setOpenLab, onCatalog }) {
       )}
       {openLab ? (
         <LabWorkspace
+          key={openLab}
           id={openLab}
           user={user}
           onBack={() => (onCatalog ? onCatalog() : setOpenLab(null))}

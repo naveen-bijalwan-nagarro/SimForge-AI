@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "./client";
 
-const scoreLabels = {
+const defaultScoreLabels = {
   knowledge: "Knowledge check",
   diagnosis: "Correct diagnosis",
   evidence: "Investigation before response",
@@ -10,8 +10,14 @@ const scoreLabels = {
 
 export function LearningCheck({
   run,
-  observing,
+  resourcePath,
+  resourceId,
+  completed: completedOverride,
+  activityKey,
+  kind = "world",
+  observing = false,
   onSaved,
+  onStateChange,
   expanded = false,
   onOpen,
 }) {
@@ -21,20 +27,24 @@ export function LearningCheck({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0);
-  const completed = run.tick >= run.horizon;
+  const id = run?.id || resourceId;
+  const completed = completedOverride ?? run?.tick >= run?.horizon;
+  const path = resourcePath || `/runs/${id}`;
+  const isWorld = kind === "world";
   useEffect(() => {
     setState(null);
     setChoices({});
     setQuestionIndex(0);
     setError("");
-  }, [run.id, completed]);
+  }, [id, completed]);
   useEffect(() => {
     let active = true;
-    api("/runs/" + run.id + "/learning-check")
+    api(`${path}/learning-check`)
       .then((data) => {
         if (active) {
           setState(data);
           setError("");
+          onStateChange?.(data);
         }
       })
       .catch((e) => {
@@ -43,26 +53,29 @@ export function LearningCheck({
     return () => {
       active = false;
     };
-  }, [run.id, completed, run.tick === 0, run.clock?.running, retry]);
+  }, [path, completed, activityKey, run?.tick === 0, run?.clock?.running, retry]);
 
   const phase = completed ? "after" : "before";
   const open = state?.[completed ? "post_open" : "baseline_open"];
   const questions = state?.[phase + "_questions"] || [];
   const question = questions[questionIndex];
-  const ready =
-    questions.length === 3 &&
-    questions.every((q) => choices[q.id] !== undefined);
+  const ready = questions.length > 0 && questions.every((q) => choices[q.id] !== undefined);
+  const practiceLabel = isWorld
+    ? "Learning score"
+    : kind === "case"
+      ? "First case assessment"
+      : "ML practice score";
   async function submit() {
     setBusy(true);
     setError("");
     try {
-      setState(
-        await api("/runs/" + run.id + "/learning-check/" + phase, {
-          choices: questions.map((q) => choices[q.id]),
-        }),
-      );
+      const nextState = await api(`${path}/learning-check/${phase}`, {
+        choices: questions.map((q) => choices[q.id]),
+      });
+      setState(nextState);
       setChoices({});
       setQuestionIndex(0);
+      onStateChange?.(nextState);
       await onSaved?.();
     } catch (e) {
       setError(e.message);
@@ -96,15 +109,15 @@ export function LearningCheck({
           <strong>
             {state?.before ? state.before.score + "%" : "Not recorded"}
           </strong>
-          {state?.before && <small>{state.before.correct}/3 correct</small>}
+          {state?.before && <small>{state.before.correct}/{state.before.total} correct</small>}
         </div>
         <div>
-          <small>Knowledge check</small>
+          <small>Post-check knowledge</small>
           <strong>{state?.after ? state.after.score + "%" : "Pending"}</strong>
-          {state?.after && <small>{state.after.correct}/3 correct</small>}
+          {state?.after && <small>{state.after.correct}/{state.after.total} correct</small>}
         </div>
         <div>
-          <small>Learning score</small>
+          <small>{practiceLabel}</small>
           <strong>
             {state?.learning_score != null
               ? state.learning_score + "/100"
@@ -134,11 +147,11 @@ export function LearningCheck({
       {open && !observing && expanded && question && (
         <div className="quick-check">
           <div className="question-progress">
-            <strong>{completed ? "Post-run check" : "Starting check"}</strong>
-            <span>Question {questionIndex + 1} of 3</span>
+            <strong>{completed ? (isWorld ? "Post-run check" : "Post-practice check") : "Starting check"}</strong>
+            <span>Question {questionIndex + 1} of {questions.length}</span>
             <progress
               value={questionIndex + 1}
-              max={3}
+              max={questions.length}
               aria-label="Knowledge check progress"
             />
           </div>
@@ -148,7 +161,7 @@ export function LearningCheck({
               <label key={index} className="quiz-option">
                 <input
                   type="radio"
-                  name={phase + "-" + run.id + "-" + question.id}
+                  name={phase + "-" + id + "-" + question.id}
                   checked={choices[question.id] === index}
                   onChange={() =>
                     setChoices((old) => ({ ...old, [question.id]: index }))
@@ -169,7 +182,7 @@ export function LearningCheck({
                 Previous question
               </button>
             )}
-            {questionIndex < 2 ? (
+            {questionIndex < questions.length - 1 ? (
               <button
                 className="primary"
                 disabled={busy || choices[question.id] === undefined}
@@ -190,8 +203,8 @@ export function LearningCheck({
             )}
           </div>
           <p className="tiny">
-            Three objective questions. One submission per phase; answers are
-            reviewed after the post-check.
+            {questions.length} objective questions. One submission per phase;
+            answers are reviewed after the post-check.
           </p>
         </div>
       )}
@@ -202,11 +215,15 @@ export function LearningCheck({
       )}
       {!completed && state?.before && expanded && (
         <p role="status">
-          Baseline saved: {state.before.correct}/3. Explore evidence, diagnose
-          the issue and choose a response.
+          Baseline saved: {state.before.correct}/{state.before.total}. {isWorld
+            ? "Explore evidence, diagnose the issue and choose a response."
+            : "Continue to the exercise and investigate the evidence."}
         </p>
       )}
-      {!completed && state && !state.before && !open && expanded && (
+      {state && !state.before && !open && state.baseline_note && (
+        <p className="tiny">{state.baseline_note}</p>
+      )}
+      {!completed && state && !state.before && !open && expanded && !state.baseline_note && (
         <p className="tiny">
           The starting check is closed. You can still complete the post-check;
           knowledge change will be unavailable.
@@ -238,7 +255,7 @@ export function LearningCheck({
               {Object.entries(state.score_components || {}).map(([key, value]) => {
                 const max = state.max_points?.[key] || 0;
                 const percent = max ? Math.round((value / max) * 100) : 0;
-                const label = scoreLabels[key] || key;
+                const label = state.component_labels?.[key] || defaultScoreLabels[key] || key;
                 return (
                   <div className="learner-report-criterion" key={key}>
                     <div className="learner-report-criterion-label">
@@ -258,13 +275,16 @@ export function LearningCheck({
             </div>
             <p className="tiny">
               Each percentage is the share of available points in that
-              criterion. These are brief knowledge and recorded-action checks,
-              not detailed skill ratings.
+              criterion. {isWorld
+                ? "These are brief knowledge and recorded-action checks, not detailed skill ratings."
+                : kind === "case"
+                  ? "These points come from your first case assessment; later attempts do not change this report."
+                  : "These points come from the submitted ML diagnosis and recovery, not a certification."}
             </p>
             <div className="learner-report-unscored">
               <div>
                 <strong>Trade-off reasoning</strong>
-                <span>Not separately scored. Review response cost and delay in your decision history.</span>
+                <span>Not separately scored. Review your choices, costs and risks in the exercise history.</span>
               </div>
               <div>
                 <strong>Knowledge transfer</strong>
@@ -296,18 +316,18 @@ export function LearningCheck({
           </div>
           <details>
             <summary>Review answers and recorded actions</summary>
-            {state.after_questions.map((q) => (
+            {(state.after_questions || []).map((q) => (
               <div className="answer-review" key={q.id}>
                 <strong>{q.prompt}</strong>
                 <p>Your answer: {q.options[state.after.choices[q.id]]}</p>
                 <p>
-                  {state.after.choices[q.id] === state.answer_keys.after[q.id]
+                  {state.after.choices[q.id] === state.answer_keys?.after?.[q.id]
                     ? "Correct."
-                    : "Expected: " + q.options[state.answer_keys.after[q.id]]}
+                    : "Expected: " + q.options[state.answer_keys?.after?.[q.id]]}
                 </p>
               </div>
             ))}
-            <ul>
+            {isWorld && state.evidence && <ul>
               <li>
                 Investigation before response:{" "}
                 {state.evidence.inspected_before_response
@@ -322,7 +342,7 @@ export function LearningCheck({
                 Targeted repair with time to take effect:{" "}
                 {state.evidence.targeted_repair ? "recorded" : "not recorded"}
               </li>
-            </ul>
+            </ul>}
           </details>
         </>
       )}

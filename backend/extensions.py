@@ -18,7 +18,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from . import catalog, codex_sandbox, connections, datasets, evidence, experience, packs, store, vision
+from . import catalog, codex_sandbox, connections, datasets, evidence, experience, learning_paths, packs, store, vision
 from .engine import agent_workflow, commander_workflow, roles_in, unnecessary_actions
 from .mllab import catalog as ml_catalog
 from .mllab import lab as ml
@@ -225,7 +225,9 @@ def install(app, user, admin, resource, scenario):
             if not lab_scen or body.signal not in lab_scen.get("consumes", []):
                 raise HTTPException(400, "That lab does not consume this signal")
             cfg = ml.create_config(key, seed=p["seed"], handoff=dict(signal=body.signal, from_run=rid, intensity=signal["intensity"]))
-            lid = store.create("ml_lab", current["id"], dict(config=cfg, probes=[], submission=None, created=time.time()))
+            lid = store.create("ml_lab", current["id"], dict(
+                config=cfg, probes=[], submission=None, created=time.time(),
+                learning_check=learning_paths.initial_state()))
             store.audit(current["id"], "handoff.lab", f"{rid}->{lid}")
             return dict(kind="lab", id=lid)
         target = scenario(body.target)
@@ -396,8 +398,22 @@ def install(app, user, admin, resource, scenario):
     def lab_row(rid, current):
         return resource(rid, "ml_lab", current)
 
-    def lab_view(row):
+    def lab_view(row, current):
         cfg = row["payload"]["config"]
+        check = row["payload"].get("learning_check") or {}
+        baseline_pending = (row["owner"] == current["id"]
+                            and check.get("version") == learning_paths.VERSION
+                            and not check.get("before")
+                            and not check.get("evidence_started")
+                            and not row["payload"].get("submission"))
+        if baseline_pending:
+            # The starting check stays meaningful even for direct API callers:
+            # model monitoring and probe data are unavailable until it is taken
+            # or explicitly skipped. Older saved labs keep their old response.
+            brief = {k: cfg.get(k) for k in ("scenario", "title", "group", "story", "profile", "family")}
+            return dict(id=row["id"], owner=row["owner"], config=brief,
+                        probes_used=row["payload"]["probes"], submission=None,
+                        baseline_pending=True)
         view = ml.overview(ml.build(cfg), cfg)
         view.update(id=row["id"], probes_used=row["payload"]["probes"], submission=row["payload"]["submission"], agent=row["payload"].get("agent"), owner=row["owner"])
         return view
@@ -411,8 +427,10 @@ def install(app, user, admin, resource, scenario):
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
         with LAB_LOCK:
-            rid = store.create("ml_lab", current["id"], dict(config=cfg, probes=[], submission=None, created=time.time()))
-            view = lab_view(store.get(rid))
+            rid = store.create("ml_lab", current["id"], dict(
+                config=cfg, probes=[], submission=None, created=time.time(),
+                learning_check=learning_paths.initial_state()))
+            view = lab_view(store.get(rid), current)
         store.audit(current["id"], "mllab.create", cfg["title"])
         return view
 
@@ -426,7 +444,7 @@ def install(app, user, admin, resource, scenario):
     @app.get("/api/mllab/labs/{rid}")
     def lab_get(rid: str, current=Depends(user)):
         with LAB_LOCK:
-            return lab_view(lab_row(rid, current))
+            return lab_view(lab_row(rid, current), current)
 
     @app.post("/api/mllab/labs/{rid}/probes/{name}")
     def lab_probe(rid: str, name: str, record: bool = True, current=Depends(user)):
@@ -437,6 +455,7 @@ def install(app, user, admin, resource, scenario):
                 data = ml.run_probe(ml.build(cfg), name, cfg)
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
+        row = learning_paths.mark_evidence_started(row, current)
         if record and row["owner"] == current["id"] and name not in row["payload"]["probes"] and not row["payload"]["submission"]:
             row["payload"]["probes"].append(name)
             store.update(rid, row["payload"], row["version"])
@@ -472,6 +491,7 @@ def install(app, user, admin, resource, scenario):
         agent["parts"] = agent_score["parts"] if row["payload"]["submission"] else None
         if not row["payload"]["submission"]:
             agent = dict(agent_name=agent["agent"], probes_run=len(agent["probes_used"]), message="The AI investigator has finished. Its diagnosis is revealed after you submit yours.", agent=agent["agent"])
+        row = learning_paths.mark_evidence_started(row, current)
         row["payload"]["agent"] = agent
         store.update(rid, row["payload"], row["version"])
         return agent
@@ -494,11 +514,13 @@ def install(app, user, admin, resource, scenario):
             raise HTTPException(404, "No sample images for this lab")
         lighting = 1.45 if n >= 12 and "data_drift" in row["payload"]["config"]["failures"] else 1.0
         img, _ = vision.render(prof["visual"], row["payload"]["config"]["seed"] * 31 + n, n % 3 == 0, 0.7, lighting)
+        learning_paths.mark_evidence_started(row, current)
         return Response(vision.png(img), media_type="image/png")
 
     @app.get("/api/mllab/labs/{rid}/export")
     def lab_export(rid: str, current=Depends(user)):
         row = lab_row(rid, current)
+        row = learning_paths.mark_evidence_started(row, current)
         cfg = row["payload"]["config"]
         with LAB_LOCK:
             lab = ml.build(cfg)

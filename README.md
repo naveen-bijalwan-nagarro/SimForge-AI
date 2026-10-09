@@ -2,7 +2,7 @@
 
 A CPU-first mock-data training environment: **Admin / Trainer creates and publishes; Learner investigates, acts and reviews objective learning evidence.**
 
-Branch: **hackathon/simforge-scenario-lab**. Exactly two application roles. One authoring page. FastAPI + React/npm + SQLite. No Docker, GPU or external database is needed for the core simulation. Optional browser WebGL views are separate from the CPU simulator.
+Exactly two application roles. One authoring page. FastAPI + React/npm + SQLite. No Docker, GPU or external database is needed for the core simulation. Optional browser WebGL views are separate from the CPU simulator.
 
 ## The simple flow
 
@@ -23,7 +23,19 @@ In **Scenario Lab**, paste the [FactoryPulse admin prompt](samples/sample1/admin
 
 **Learning journey:** mission and success criteria → three-question starting check → evidence, diagnosis and response → outcome and three-question post-check. Four score cards stay above the simulator: starting knowledge, post-check knowledge, objective learning score and knowledge change. No free-text answer or manual grading is required; Admin / Trainer assigns and observes rather than scoring answers.
 
-The **100-point practice score** is calculated on the server: post-check **50**, correct incident diagnosis before debrief **25**, logged investigation after incident onset and before response **15**, targeted repair with time to take effect **10**. The learner report shows the actual score and each measured contribution as a bar with earned and available points. Trade-off reasoning and knowledge transfer are shown as unscored follow-up areas; the report does not invent percentages or trainer-review status. Knowledge change is the actual before/after percentage-point difference, not this composite score. Missing baseline is unavailable, not zero; zero and negative change remain visible. Answer keys are only returned after the post-check is submitted. Questions adapt to published workflow labels without quoting the hidden cause. This is a shared operational-reasoning practice check, not a validated domain exam or certification; measure transfer and retention later on an unseen exercise.
+The **100-point practice score** for this live simulation is calculated on the server: post-check **50**, correct incident diagnosis before debrief **25**, logged investigation after incident onset and before response **15**, targeted repair with time to take effect **10**. The learner report shows the actual score and each measured contribution as a bar with earned and available points. Trade-off reasoning and knowledge transfer are shown as unscored follow-up areas; the report does not invent percentages or trainer-review status. Knowledge change is the actual before/after percentage-point difference, not this composite score. Missing baseline is unavailable, not zero; zero and negative change remain visible. Answer keys are only returned after the post-check is submitted. New questions use the frozen scenario title, role, work-item type and workflow handoffs without quoting the hidden incident or cause. This is a short operational-reasoning practice check, not a validated domain exam or certification; measure transfer and retention later on an unseen exercise.
+
+### Knowledge checks across Scenario Library
+
+Every Scenario Library format offers a three-question starting check before practice evidence and a three-question post-check after the main task. The questions use the exercise context and a hypothetical follow-up variation; they do not turn a practice result into a certification. Starting knowledge and post-check knowledge are percentages. **Knowledge change** is their difference in percentage points when both checks were recorded; a missing starting check stays unavailable. The learner report keeps that comparison separate from the exercise's own 100-point practice score. Answer keys appear after the post-check.
+
+| Library path | Post-check opens after | Existing practice score |
+|---|---|---|
+| Live simulation, including a historical case opened in live mode | The simulation reaches its horizon | Post-check 50 · timely correct diagnosis 25 · investigation before response 15 · targeted repair 10 |
+| Historical data investigation | The first case assessment is submitted | Root-cause finding 55 · evidence 25 · recommendation 20. Later case attempts remain in history but do not rewrite the first-attempt learner report. |
+| ML investigation | The learner submits a failure diagnosis and fixes | Failure diagnosis 45 · recovery 35 · fix precision 10 · investigation efficiency 10 |
+
+For a new historical case or ML lab, complete the starting check before opening evidence, or explicitly continue without it. Older case files and labs retain their existing scores and can take the post-check, but cannot retroactively gain a starting check, so knowledge change is unavailable. Scores and synthetic outcomes are illustrative practice evidence; an unseen later exercise and retention check are still needed to establish learning transfer.
 
 The learner's primary tabs are **Operations**, **Evidence**, **Diagnose & act**, and **Learning review**. Additional data, 3D, timeline and council views are grouped under **Data & visual tools**. Agent population and its dedicated Mesa/deck.gl code and dependencies have been removed. Synthetic work-item volume remains part of dataset generation.
 

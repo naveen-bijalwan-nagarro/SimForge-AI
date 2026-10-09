@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
-from . import catalog, experience, labs, settings, store
+from . import catalog, experience, labs, learning_paths, settings, store
 from .engine import ROLES, agent_workflow, graph_for, roles_in, simulate
 from .extensions import install as install_extensions
 from .factory.api import install as install_factory
@@ -496,7 +496,8 @@ def generate(body: Generate, current=Depends(user)):
     rid = store.create(
         "dataset",
         current["id"],
-        dict(title=spec["title"], scenario=spec, bundle=bundle, assessments=[]),
+        dict(title=spec["title"], scenario=spec, bundle=bundle, assessments=[],
+             learning_check=learning_paths.initial_state()),
     )
     store.audit(current["id"], "dataset.generate", rid)
     return dataset_view(store.get(rid))
@@ -506,6 +507,7 @@ def dataset_view(row):
     p = row["payload"]
     return dict(
         id=row["id"],
+        owner=row["owner"],
         title=p["title"],
         scenario=catalog.public_scenario(p["scenario"]),
         tables={k: len(v) for k, v in p["bundle"].items() if isinstance(v, list)},
@@ -527,16 +529,20 @@ def dataset(rid: str, current=Depends(user)):
 
 @app.get("/api/datasets/{rid}/tables/{table}")
 def table(rid: str, table: str, offset: int = 0, limit: int = 100, current=Depends(user)):
-    rows = resource(rid, "dataset", current)["payload"]["bundle"].get(table)
+    row = resource(rid, "dataset", current)
+    rows = row["payload"]["bundle"].get(table)
     if not isinstance(rows, list):
         raise HTTPException(404, "Table not found")
+    learning_paths.mark_evidence_started(row, current)
     offset = max(0, offset)
     return dict(rows=rows[offset : offset + max(1, min(limit, 200))], total=len(rows))
 
 
 @app.get("/api/datasets/{rid}/export")
 def export_dataset(rid: str, current=Depends(user)):
-    bundle = resource(rid, "dataset", current)["payload"]["bundle"]
+    row = resource(rid, "dataset", current)
+    learning_paths.mark_evidence_started(row, current)
+    bundle = row["payload"]["bundle"]
     return Response(
         labs.bundle_zip(bundle),
         media_type="application/zip",
@@ -553,6 +559,8 @@ class Assessment(BaseModel):
 @app.post("/api/datasets/{rid}/assess")
 def assess(rid: str, body: Assessment, current=Depends(user)):
     row = resource(rid, "dataset", current)
+    if row["owner"] != current["id"]:
+        raise HTTPException(403, "Observers cannot submit a learner's case assessment")
     spec = row["payload"]["scenario"]
     expected = {e.lower() for e in spec["evidence"]}
     root = 55 if body.root_cause == spec["root_cause"] else 0
@@ -750,6 +758,7 @@ install_extensions(app, user, admin, resource, scenario)
 install_factory(app, user, admin, resource)
 
 install_learning(app, user, admin, resource)
+learning_paths.install(app, user, resource)
 
 # npm build produces static assets; one Uvicorn process can serve both API and React.
 frontend = settings.ROOT / "frontend/dist"

@@ -859,7 +859,11 @@ function App() {
             <Icon size={23} />
           </div>
           <Badge>
-            {s.kind === "ml" ? "ML INVESTIGATION" : "DATA + LIVE SIMULATION"}
+            {s.kind === "ml"
+              ? "ML INVESTIGATION"
+              : s.kind === "training"
+                ? "LIVE OR HISTORICAL CASE"
+                : "LIVE SIMULATION"}
           </Badge>
         </div>
         <div className="category-label">{s.category}</div>
@@ -871,8 +875,10 @@ function App() {
         <div className="card-bottom">
           <span>
             {s.kind === "ml"
-              ? "Model evidence · Diagnose and repair"
-              : `${s.dataset_count}+ datasets · Guided mission`}
+              ? "Starting check · Model evidence · Post-check"
+              : s.kind === "training"
+                ? "Starting check · Live or historical case · Post-check"
+                : "Starting check · Live decisions · Post-check"}
           </span>
           <ArrowRight size={17} />
         </div>
@@ -1016,7 +1022,7 @@ function App() {
             <>
               <PageTitle
                 title="Scenario library"
-                subtitle="One library, three kinds of practice. Choose the learning task; each exercise keeps its own engine and scoring."
+                subtitle="Choose a practice format. Each exercise offers a starting and post knowledge check; its practice score still follows its own engine."
               >
                 {canAuthor && (
                   <button className="primary" onClick={() => go("designer")}>
@@ -1073,14 +1079,18 @@ function App() {
                     ? "Diagnose a broken ML system"
                     : libraryMode === "data"
                       ? "Investigate a historical business case"
-                      : "Practise decisions in a changing business workflow"}
+                      : libraryMode === "business"
+                        ? "Practise decisions in a changing business workflow"
+                        : "Choose a simulation, historical case or ML investigation"}
                 </strong>
                 <p>
                   {libraryMode === "ml"
-                    ? "Inspect model evidence, identify hidden drift, leakage or serving faults, apply a fix and compare recovery. This is an ML investigation, not an operational simulation."
+                    ? "Take a starting check, inspect model evidence, identify hidden drift, leakage or serving faults, apply a fix and compare recovery. Then complete the post-check."
                     : libraryMode === "data"
-                      ? "Generate linked mock-data records, identify the hidden business problem and submit an evidence-based assessment. Open the historical assessment from the mission dialog; there is no simulation clock."
-                      : "Generate linked datasets, follow work items through live queues, inspect evidence and choose actions. The debrief compares your decisions with the same workload without intervention."}
+                      ? "Open the historical assessment from the mission dialog. Take a starting check before inspecting linked mock-data records, submit your evidence-based case, then complete the post-check. There is no simulation clock."
+                      : libraryMode === "business"
+                        ? "Take a starting check, generate linked datasets, follow live queues, inspect evidence and choose actions. The debrief compares your decisions with the same workload without intervention; finish with a post-check."
+                        : "Choose one of three practice formats. The starting and post checks measure knowledge change; each format has its own practice score."}
                 </p>
               </section>
               {libraryMode === "ml" ? (
@@ -1344,7 +1354,14 @@ function App() {
             />
           )}
           {view === "dataset" && dataset && (
-            <Dataset key={dataset.id} data={dataset} act={act} busy={busy} />
+            <Dataset
+              key={dataset.id}
+              data={dataset}
+              user={user}
+              onUpdated={setDataset}
+              act={act}
+              busy={busy}
+            />
           )}
           {view === "designer" && canAuthor && (
             <ScenarioStudio
@@ -2142,22 +2159,77 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
   );
 }
 
-function Dataset({ data, act, busy }) {
+function Dataset({ data, user, onUpdated, act, busy }) {
   const [table, setTable] = useState(Object.keys(data.tables)[0]),
     [rows, setRows] = useState([]),
     [offset, setOffset] = useState(0),
     [root, setRoot] = useState(""),
     [evidence, setEvidence] = useState(""),
     [recommendation, setRecommendation] = useState(""),
-    [result, setResult] = useState(null);
+    [result, setResult] = useState(data.assessments?.at(-1) || null),
+    [checkState, setCheckState] = useState(null),
+    [skipBaseline, setSkipBaseline] = useState(false),
+    [tableTouched, setTableTouched] = useState(false);
+  const observing = Boolean(data.owner && data.owner !== user.id);
+  const baselineGate =
+    !observing &&
+    !result &&
+    !skipBaseline &&
+    (!checkState || checkState.baseline_open);
   useEffect(() => {
-    act(async () =>
+    if (baselineGate) return;
+    act(async () => {
       setRows(
         (await api(`/datasets/${data.id}/tables/${table}?offset=${offset}`))
           .rows,
-      ),
+      );
+      setTableTouched(true);
+    });
+  }, [data.id, table, offset, baselineGate]);
+  const check = (
+    <LearningCheck
+      resourceId={data.id}
+      resourcePath={`/datasets/${data.id}`}
+      kind="case"
+      completed={Boolean(result)}
+      activityKey={`${data.assessments?.length || 0}:${tableTouched}:${skipBaseline}`}
+      observing={observing}
+      expanded
+      onStateChange={setCheckState}
+    />
+  );
+  if (baselineGate)
+    return (
+      <>
+        <PageTitle
+          title={data.title}
+          subtitle={`Synthetic training records · Seed ${data.meta.seed}`}
+        />
+        {check}
+        <section className="panel padded">
+          <h3>Start with what you know</h3>
+          <p>
+            Answer the starting knowledge check before opening the case evidence
+            to compare your knowledge after practice. You can continue without
+            it, but knowledge change will be unavailable.
+          </p>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              act(async () => {
+                setCheckState(
+                  await api(`/datasets/${data.id}/learning-check/skip`, {}),
+                );
+                setSkipBaseline(true);
+              })
+            }
+          >
+            Continue without starting check
+          </button>
+        </section>
+      </>
     );
-  }, [data.id, table, offset]);
   return (
     <>
       <PageTitle
@@ -2169,6 +2241,7 @@ function Dataset({ data, act, busy }) {
           Download CSV bundle
         </a>
       </PageTitle>
+      {check}
       <div className="callout">
         <ShieldCheck size={20} />
         <div>
@@ -2232,15 +2305,16 @@ function Dataset({ data, act, busy }) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            act(async () =>
+            act(async () => {
               setResult(
                 await api(`/datasets/${data.id}/assess`, {
                   root_cause: root,
                   evidence: evidence.split(","),
                   recommendation,
                 }),
-              ),
-            );
+              );
+              onUpdated(await api(`/datasets/${data.id}`));
+            });
           }}
         >
           <label>
@@ -2280,6 +2354,7 @@ function Dataset({ data, act, busy }) {
         </form>
         {result && (
           <div className="assessment-result">
+            <h4>Latest case attempt</h4>
             <strong>{result.score} / 100</strong>
             <p>Expected finding: {result.expected_root}</p>
             <p>Evidence: {result.expected_evidence.join(", ")}</p>
