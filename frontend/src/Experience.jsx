@@ -973,6 +973,7 @@ export function AdminStudio({
     [engine, setEngine] = useState("codex"),
     [apiStatus, setApiStatus] = useState(null),
     [documentIds, setDocumentIds] = useState([]),
+    [templateOpen, setTemplateOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [prompt, setPrompt] = useState(
@@ -980,7 +981,9 @@ export function AdminStudio({
     ),
     [job, setJob] = useState(null);
   async function refresh() {
-    setDrafts(await api("/scenario-drafts"));
+    const rows = await api("/scenario-drafts");
+    setDrafts(rows);
+    return rows;
   }
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
@@ -1002,9 +1005,18 @@ export function AdminStudio({
         if (active) {
           setJob(result);
           if (result.status !== "running") {
-            await refresh();
+            const updatedDrafts = await refresh();
             setJobs(await api("/authoring/jobs"));
-            if (result.status === "ready") onDraftReady?.();
+            if (result.status === "ready") {
+              const generated = updatedDrafts.find(
+                (draft) => draft.id === result.draft_id,
+              );
+              if (generated) {
+                setText(JSON.stringify(generated.definition, null, 2));
+                setTemplateOpen(true);
+              }
+              onDraftReady?.();
+            }
           } else timer = setTimeout(poll, 2000);
         }
       } catch (e) {
@@ -1182,7 +1194,7 @@ export function AdminStudio({
       </section>
       <details
         className="panel padded template-authoring"
-        open={engine === "manual"}
+        open={engine === "manual" || templateOpen}
       >
         <summary>Use a tested template instead (works without Codex)</summary>
         <p>
