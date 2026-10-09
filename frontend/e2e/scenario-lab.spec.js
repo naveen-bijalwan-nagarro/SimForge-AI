@@ -64,7 +64,7 @@ test("one Scenario Lab: admin configures a write-only API key; learner cannot ac
     admin.getByRole("button", { name: "Generate draft with OpenAI API" }),
   ).toBeDisabled();
   await admin
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       "Create a synthetic supplier workflow for evidence-led incident practice. Include safe investigation, targeted repair and a reviewed publication gate.",
     );

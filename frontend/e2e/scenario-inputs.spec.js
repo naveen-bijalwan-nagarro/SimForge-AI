@@ -6,7 +6,7 @@ async function adminLab(page) {
   await page.getByRole("button", { name: "admin", exact: true }).click();
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
-  await expect(page.getByLabel("Scenario description")).toBeVisible();
+  await expect(page.getByLabel("Admin prompt")).toBeVisible();
 }
 
 function pdf(text) {
@@ -91,7 +91,7 @@ test("multiple PDFs feed only selected references; archive is reversible and lea
   await expect(sources).toContainText("Dispatch confirmations are checked");
   await sources.getByLabel("notes.md", { exact: true }).first().uncheck();
   await page
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       "Create a supplier disruption scenario with synthetic workflow records and measurable recovery.",
     );
@@ -230,7 +230,7 @@ test("voice dictation appends reviewed text once, stops, handles permission deni
     name: "Voice dictation controls",
   });
   await page.getByText("Voice input (optional)", { exact: true }).click();
-  await page.getByLabel("Scenario description").fill("");
+  await page.getByLabel("Admin prompt").fill("");
   await expect(
     voice.getByRole("button", { name: "Start voice dictation" }),
   ).toBeDisabled();
@@ -246,7 +246,7 @@ test("voice dictation appends reviewed text once, stops, handles permission deni
     window.__voice.onresult({ resultIndex: 0, results: [result] });
   });
   await expect(voice).toContainText("Listening… Create a safe logistics");
-  await expect(page.getByLabel("Scenario description")).toHaveValue("");
+  await expect(page.getByLabel("Admin prompt")).toHaveValue("");
   await page.evaluate(() => {
     const result = [
       { transcript: "Create a safe logistics training scenario" },
@@ -256,7 +256,7 @@ test("voice dictation appends reviewed text once, stops, handles permission deni
     window.__voice.onresult(event);
     window.__voice.onresult(event);
   });
-  await expect(page.getByLabel("Scenario description")).toHaveValue(
+  await expect(page.getByLabel("Admin prompt")).toHaveValue(
     "Create a safe logistics training scenario",
   );
   await page.locator(".codex-author").screenshot({
@@ -292,11 +292,11 @@ test("unsupported voice preserves typing and multi-document upload", async ({
   await page.getByText("Voice input (optional)", { exact: true }).click();
   await expect(voice).toContainText("not supported in this browser");
   await page
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       "Create a synthetic staff training environment with linked mock records.",
     );
-  await expect(page.getByLabel("Scenario description")).toHaveValue(
+  await expect(page.getByLabel("Admin prompt")).toHaveValue(
     "Create a synthetic staff training environment with linked mock records.",
   );
   await expect(

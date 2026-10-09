@@ -225,7 +225,7 @@ test("live local Codex creates a validated admin draft that can be published", a
   ).toBeVisible();
   const title = "Codex UI Warehouse run-" + Date.now().toString(36);
   await page
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       `Create a mock training scenario titled '${title}'. Use six warehouse systems: intake, triage, stock, picking, packing and dispatch. Connect them in an acyclic graph with a branch from triage to stock and picking, both joining at packing. A triage allocation fault causes delays. Learner is a warehouse controller, investigating and restoring deliveries within a budget. Use synthetic data only, environment_style service_app.`,
     );

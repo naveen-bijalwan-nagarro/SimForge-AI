@@ -1052,12 +1052,12 @@ export function AdminStudio({
         {engine !== "manual" && (
           <>
             <label>
-              Scenario description
+              Admin prompt
               <textarea
                 rows="3"
                 maxLength={6000}
                 value={prompt}
-                placeholder="Describe the learner role, workflow, incident and measurable success. Attach supporting references below."
+                placeholder="Describe the learner role, workflow, hidden cause, evidence, decisions and measurable success. Upload supporting documents above."
                 onChange={(e) => {
                   setPrompt(e.target.value);
                   setPrivacyPreview(null);

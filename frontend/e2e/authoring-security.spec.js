@@ -31,7 +31,7 @@ test("fresh authoring screens input before generation and loads the generated de
   await page.getByRole("button", { name: "admin", exact: true }).click();
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: "Scenario Lab", exact: true }).click();
-  await expect(page.getByLabel("Scenario description")).toHaveValue("");
+  await expect(page.getByLabel("Admin prompt")).toHaveValue("");
   await expect(
     page.getByRole("button", { name: "Load brief and references" }),
   ).toHaveCount(0);
@@ -70,7 +70,7 @@ test("fresh authoring screens input before generation and loads the generated de
     }),
   );
   await page
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       "Create an interruption exercise with synthetic records. Contact fixture@example.test.",
     );
@@ -92,7 +92,7 @@ test("fresh authoring screens input before generation and loads the generated de
     requests.some((url) => url.includes("/api/scenario-examples")),
   ).toBeFalsy();
   await page.getByRole("button", { name: "New scenario", exact: true }).click();
-  await expect(page.getByLabel("Scenario description")).toHaveValue("");
+  await expect(page.getByLabel("Admin prompt")).toHaveValue("");
   await expect(page.getByLabel("Scenario definition JSON")).toHaveValue(
     /New training scenario/,
   );

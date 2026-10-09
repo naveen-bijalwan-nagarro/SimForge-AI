@@ -39,7 +39,7 @@ test("admin uploads FactoryPulse references and manually publishes to an already
     admin.getByRole("button", { name: "Load brief and references" }),
   ).toHaveCount(0);
   await admin
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       fs.readFileSync(
         path.join(sample, "admin_prompt.txt"),
@@ -237,12 +237,12 @@ test("failed checks can be revised in Scenario Lab and privacy preview screens t
 }) => {
   await lab(page);
   await page
-    .getByLabel("Scenario description")
+    .getByLabel("Admin prompt")
     .fill(
       "Create a synthetic logistics exercise. Contact fixture@example.test. api_key=demo_placeholder_not_a_live_key",
     );
   await page.getByRole("button", { name: "Preview privacy checks" }).click();
-  await expect(page.getByLabel("Scenario description")).toHaveValue(
+  await expect(page.getByLabel("Admin prompt")).toHaveValue(
     /fixture@example.test/,
   );
   await page
