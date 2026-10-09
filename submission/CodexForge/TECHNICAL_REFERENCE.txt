@@ -1,0 +1,15 @@
+CodexForge
+SimForge AI technical submission reference
+
+Repository: https://github.com/naveen-bijalwan-nagarro/SimForge-AI
+Branch: main
+Commit recorded when this package was prepared on 9 October 2026:
+8ecfb2c8efb4d2b2cdb397480abf7aabae647c10
+
+The repository contains the FastAPI backend, React frontend, scenario packs,
+documentation and synthetic FactoryPulse input packet. On Windows, run
+setup.cmd and start.cmd as described in README.md. The local frontend/dist
+build and application data are generated artifacts and are not in Git.
+
+The submitted recording demonstrates the built solution. Synthetic costs,
+delays and learning scores are illustrative practice evidence.
