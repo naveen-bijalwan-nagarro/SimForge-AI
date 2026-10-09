@@ -17,7 +17,7 @@ from .. import authoring, store
 from ..settings import ROOT
 from . import checks, compiler, knowledge, pii, workflow
 
-DEMO = ROOT / "samples" / "sops" / "supplier_disruption_sop.md"
+DEMO = ROOT / "tests" / "fixtures" / "supplier_disruption_sop.md"
 
 
 class SopUpload(BaseModel):

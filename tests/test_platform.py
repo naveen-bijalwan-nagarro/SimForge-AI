@@ -16,7 +16,7 @@ from backend.factory import checks, compiler, pii
 from backend.main import app
 
 HEADERS = {"X-SimForge-Request": "1"}
-DEMO_SOP = (settings.ROOT / "samples" / "sops" / "supplier_disruption_sop.md").read_text(encoding="utf-8")
+DEMO_SOP = (settings.ROOT / "tests" / "fixtures" / "supplier_disruption_sop.md").read_text(encoding="utf-8")
 
 
 @pytest.fixture
