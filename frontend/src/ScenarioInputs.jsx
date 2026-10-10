@@ -170,21 +170,11 @@ function ImageDescription({ file, value, onChange }) {
 
 export function ScenarioDocuments({ selected, onSelect, disabled }) {
   const [documents, setDocuments] = useState([]);
-  const [showAll, setShowAll] = useState(false);
-  const [visibleIds, setVisibleIds] = useState(selected);
-  useEffect(() => {
-    setVisibleIds((old) => [...new Set([...old, ...selected])]);
-  }, [selected]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState([]);
   const [descriptions, setDescriptions] = useState({});
-  useEffect(() => {
-    api("/scenario-documents")
-      .then(setDocuments)
-      .catch((e) => setError(e.message));
-  }, []);
   async function upload(event) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -229,7 +219,7 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
         ),
       );
       setMessage(
-        `${result.documents.length} documents extracted locally. Select up to 8 references for the next draft.`,
+        `${result.documents.length} documents extracted locally. Review the checked files before generating.`,
       );
       if (result.errors.length)
         setError(
@@ -315,25 +305,19 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
       )}
       {message && <p role="status">{message}</p>}
       <p className="tiny">
-        {selected.length}/8 references selected. Long references are excerpted
-        fairly into a 24,000-character context budget; full extracted previews
-        remain available.
+        {selected.length}/8 references selected for this draft. Only checked
+        files are included when you preview or generate. Long references are
+        excerpted fairly into a 24,000-character context budget.
       </p>
       <details className="reference-library">
         <summary>
-          Review reference documents ({selected.length} selected)
+          Review uploaded references ({selected.length} selected)
         </summary>
-        {documents.some((d) => !visibleIds.includes(d.id)) && (
-          <button className="secondary" onClick={() => setShowAll(!showAll)}>
-            {showAll
-              ? "Show selected references only"
-              : `Browse saved references (${documents.filter((d) => !visibleIds.includes(d.id)).length})`}
-          </button>
+        {!documents.length && (
+          <p className="tiny">Upload files above to review their extracted text.</p>
         )}
-        {documents
-          .filter((d) => showAll || visibleIds.includes(d.id))
-          .map((d) => (
-            <article className="document-reference" key={d.id}>
+        {documents.map((d) => (
+          <article className="document-reference" key={d.id}>
               <label className="voice-consent">
                 <input
                   type="checkbox"
@@ -378,8 +362,8 @@ export function ScenarioDocuments({ selected, onSelect, disabled }) {
                 <summary>Preview extracted text: {d.name}</summary>
                 <pre className="document-text">{d.text}</pre>
               </details>
-            </article>
-          ))}
+          </article>
+        ))}
       </details>
     </section>
   );

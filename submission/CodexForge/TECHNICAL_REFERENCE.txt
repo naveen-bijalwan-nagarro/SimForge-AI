@@ -2,11 +2,11 @@ CodexForge
 SimForge AI technical submission reference
 
 Primary code artifact: SimForge-AI-code.zip in this folder
-SHA-256: 4683efed3be7123277069665be7f3ae3834bd22beff523868d9debb4fb79e953
-Base commit: 4e5e29836b072d9f19aa8e045ca2a3e0d30c8db7
-The ZIP includes the current working-tree Live operations and Scenario Lab demo
-improvements plus the revised synthetic FactoryPulse packet. CODE_SNAPSHOT.txt
-inside the archive lists the changed source files.
+SHA-256: 2a178c8f488fb37b33ec740e26bc4258f1d1564f22e1da2674893b56f491b422
+Base commit: f8b045378afe9de2a3aa29d346157e0f8957b80c
+The ZIP includes the Scenario Lab flow with direct Admin document upload, the
+masked startup banner and the revised synthetic FactoryPulse source files.
+CODE_SNAPSHOT.txt inside the archive lists uncommitted source changes.
 
 The code ZIP contains the FastAPI backend, React frontend, scenario packs,
 README, setup.cmd, start.cmd and the synthetic FactoryPulse input packet.

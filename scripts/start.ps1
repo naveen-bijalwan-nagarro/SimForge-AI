@@ -102,7 +102,7 @@ try {
     } else {
         Write-Host "  SimForge AI: $uiUrl   (UI and API on one server; API docs at /docs)" -ForegroundColor Green
     }
-    Write-Host '  Sign in as admin/admin123 (Admin / Trainer) or learner/learner123. Ctrl+C stops it.' -ForegroundColor Green
+    Write-Host '  Sign in as admin/***** (Admin / Trainer) or learner/*****. Ctrl+C stops it.' -ForegroundColor Green
     Write-Host ''
     & $venvPython @taskArgs
 } finally {

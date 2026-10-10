@@ -902,7 +902,6 @@ export function AdminStudio({
   const [documentRevision, setDocumentRevision] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [privacyPreview, setPrivacyPreview] = useState(null);
-  const [sampleMessage, setSampleMessage] = useState("");
   const [text, setText] = useState(JSON.stringify(genericScenario, null, 2)),
     [drafts, setDrafts] = useState([]),
     [jobs, setJobs] = useState([]),
@@ -1064,37 +1063,6 @@ export function AdminStudio({
               Return to primary Codex
             </button>
             <OpenAIConnection onChange={setApiStatus} />
-          </>
-        )}
-        {engine !== "manual" && (
-          <>
-            <button
-              className="secondary"
-              disabled={busy || job?.status === "running"}
-              onClick={() =>
-                act(async () => {
-                  const packet = await api(
-                    "/scenario-examples/factorypulse_machine_failure/load",
-                    {},
-                  );
-                  if (packet.errors?.length)
-                    throw new Error(
-                      packet.errors.map((item) => item.message).join(" · "),
-                    );
-                  setPrompt(packet.prompt);
-                  setDocumentIds(packet.documents.map((item) => item.id));
-                  setDocumentRevision((value) => value + 1);
-                  setPrivacyPreview(null);
-                  setJob(null);
-                  setSampleMessage(
-                    "FactoryPulse prompt and references loaded. Review them before generating.",
-                  );
-                })
-              }
-            >
-              Load FactoryPulse demo packet
-            </button>
-            {sampleMessage && <p role="status">{sampleMessage}</p>}
           </>
         )}
         <ScenarioDocuments
