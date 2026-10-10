@@ -13,6 +13,9 @@ data/
 legacy/**/instance/
 artifacts/
 
+# Keep new demo recordings in the submission package, outside Git history.
+submission/**/recordings/*.mp4
+
 # Codex sandbox drafts are working files; submit them for approval instead of committing
 codex_sandbox/drafts/*
 !codex_sandbox/drafts/.gitkeep
