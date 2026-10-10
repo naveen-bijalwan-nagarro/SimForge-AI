@@ -490,6 +490,7 @@ function App() {
     [items, setItems] = useState([]),
     [mlCatalog, setMlCatalog] = useState([]),
     [overview, setOverview] = useState(null),
+    [homeState, setHomeState] = useState({ loaded: false, error: "" }),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState(null),
@@ -517,6 +518,7 @@ function App() {
   // the latest response for each page (also invalidated on logout).
   const listRequests = useRef({});
   const listSequence = useRef(0);
+  const homeSequence = useRef(0);
   useEffect(() => {
     Promise.all([
       api("/health").then((x) => setMode(x.mode)),
@@ -587,6 +589,8 @@ function App() {
       setLibraryMode("all");
       setItems([]);
       setMlCatalog([]);
+      homeSequence.current += 1;
+      setHomeState({ loaded: false, error: "" });
       listRequests.current = {};
       setLists({ runs: [], training: [], preparations: [], audit: [] });
       setListStates({});
@@ -599,40 +603,50 @@ function App() {
       setUser(null);
     });
   }
-  async function loadHome() {
-    await act(async () => {
+  async function loadHome({ background = false } = {}) {
+    const request = ++homeSequence.current;
+    try {
       const [s, o, ml] = await Promise.all([
         api("/scenarios"),
         api("/overview"),
         api("/mllab/catalog"),
       ]);
+      if (request !== homeSequence.current) return;
       setItems(s);
       setMlCatalog(ml.scenarios);
       setOverview(o);
-    });
+      setHomeState({ loaded: true, error: "" });
+    } catch (e) {
+      if (request !== homeSequence.current) return;
+      setHomeState((previous) => ({ ...previous, error: e.message }));
+      if (!background) setError(e.message);
+    }
   }
-  async function loadList(next) {
-    if (next === "training") loadList("preparations");
+  async function loadList(next, { background = false } = {}) {
+    if (next === "training") loadList("preparations", { background });
     if (!LIST_PATHS[next]) return;
     const request = ++listSequence.current;
     listRequests.current[next] = request;
-    setListStates((current) => ({
-      ...current,
-      [next]: { loading: true, error: "" },
-    }));
+    if (!background)
+      setListStates((current) => ({
+        ...current,
+        [next]: { ...current[next], loading: true, error: "" },
+      }));
     try {
       const rows = await api(LIST_PATHS[next]);
       if (listRequests.current[next] !== request) return;
       setLists((current) => ({ ...current, [next]: rows }));
       setListStates((current) => ({
         ...current,
-        [next]: { loading: false, error: "" },
+        [next]: { loaded: true, loading: false, error: "" },
       }));
     } catch (e) {
       if (listRequests.current[next] !== request) return;
       setListStates((current) => ({
         ...current,
-        [next]: { loading: false, error: e.message },
+        [next]: current[next]?.loaded && background
+          ? current[next]
+          : { loading: false, error: e.message },
       }));
     }
   }
@@ -655,6 +669,38 @@ function App() {
     if (next === "overview" || next === "catalog") loadHome();
     await loadList(next);
   }
+  useEffect(() => {
+    if (!user || !["overview", "catalog", "assignments", "runs", "training"].includes(view))
+      return;
+    let active = true;
+    let timer;
+    async function update() {
+      if (!active) return;
+      if (document.visibilityState !== "hidden") {
+        if (["overview", "catalog"].includes(view))
+          await loadHome({ background: true });
+        else if (["runs", "training"].includes(view))
+          await loadList(view, { background: true });
+      }
+      if (active) timer = setTimeout(update, 6000);
+    }
+    const resume = () => {
+      if (document.visibilityState !== "hidden") {
+        if (["overview", "catalog"].includes(view)) loadHome({ background: true });
+        else if (["runs", "training"].includes(view))
+          loadList(view, { background: true });
+      }
+    };
+    timer = setTimeout(update, 6000);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [user?.id, view]);
   function openTrainingLibrary() {
     setFilter("Training library");
     setQuery("");
@@ -1008,7 +1054,21 @@ function App() {
               </button>
             </div>
           )}
-          {view === "overview" && (
+          {["overview", "catalog"].includes(view) && !homeState.loaded && (
+            <section className="panel padded" aria-busy={!homeState.error}>
+              {homeState.error ? (
+                <>
+                  <p role="alert">Could not load the scenario library: {homeState.error}</p>
+                  <button className="secondary" onClick={() => loadHome()}>
+                    Try again
+                  </button>
+                </>
+              ) : (
+                <p role="status">Loading published scenarios and workspace…</p>
+              )}
+            </section>
+          )}
+          {view === "overview" && homeState.loaded && (
             <RoleHome
               key={user.id}
               user={user}
@@ -1016,14 +1076,18 @@ function App() {
               scenarios={items}
               onNavigate={go}
               onScenario={setSelected}
+              onRefresh={() => loadHome()}
             />
           )}
-          {view === "catalog" && (
+          {view === "catalog" && homeState.loaded && (
             <>
               <PageTitle
                 title="Scenario library"
                 subtitle="Choose a practice format. Each exercise offers a starting and post knowledge check; its practice score still follows its own engine."
               >
+                <button className="secondary" onClick={() => loadHome()}>
+                  Refresh library
+                </button>
                 {canAuthor && (
                   <button className="primary" onClick={() => go("designer")}>
                     <Plus size={17} />
@@ -1153,7 +1217,11 @@ function App() {
               <PageTitle
                 title="Your simulation runs"
                 subtitle="Resume a world, review its decisions, or compare a new strategy."
-              />
+              >
+                <button className="secondary" onClick={() => loadList("runs", { background: true })}>
+                  Refresh runs
+                </button>
+              </PageTitle>
               <ListPanel
                 state={listStates.runs}
                 label="simulation runs"
@@ -1199,6 +1267,9 @@ function App() {
                 title="Training datasets"
                 subtitle="Generated on demand, then saved: linked scenario datasets and historical case files. New published scenarios create fresh mock-data environments when learners launch them."
               >
+                <button className="secondary" onClick={() => loadList("training", { background: true })}>
+                  Refresh data
+                </button>
                 <button className="secondary" onClick={openTrainingLibrary}>
                   <Layers3 size={16} />
                   Browse the {
@@ -1340,6 +1411,7 @@ function App() {
           )}
           {view === "world" && run && (
             <World
+              key={run.id}
               run={run}
               setRun={setRun}
               act={act}
@@ -1493,35 +1565,60 @@ function PageTitle({ title, subtitle, children }) {
 }
 
 function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
-  const [tab, setTab] = useState("World map"),
+  const [tab, setTab] = useState(
+      run.tick >= run.horizon ? "Debrief" : "World map",
+    ),
     [agents, setAgents] = useState([]),
     [report, setReport] = useState(null),
+    [reportRunId, setReportRunId] = useState(null),
+    [reportError, setReportError] = useState(""),
+    [reportRetry, setReportRetry] = useState(0),
     [replay, setReplay] = useState(null),
     [node, setNode] = useState(null),
     [playbackError, setPlaybackError] = useState("");
   const observing = run.owner !== user.id;
   useEffect(() => {
-    if ((!run.clock?.running && !observing) || busy) return;
+    if (busy) return;
     let active = true,
       timer;
-    async function poll() {
+    async function refresh() {
       try {
         const next = await api(`/runs/${run.id}?role=${run.role}`);
         if (active) {
-          setRun(next);
+          setRun((current) => {
+            if (!current || current.id !== next.id || current.role !== next.role)
+              return current;
+            if (current.version > next.version) return current;
+            if (
+              current.version === next.version &&
+              current.tick === next.tick &&
+              current.clock?.running === next.clock?.running
+            ) return current;
+            return next;
+          });
           setPlaybackError("");
         }
       } catch (e) {
         if (active) setPlaybackError(e.message);
       }
-      if (active) timer = setTimeout(poll, 1000);
     }
-    timer = setTimeout(poll, 800);
+    async function poll() {
+      if (document.visibilityState !== "hidden") await refresh();
+      if (active) timer = setTimeout(poll, run.clock?.running ? 1000 : 6000);
+    }
+    const resume = () => {
+      if (document.visibilityState !== "hidden") refresh();
+    };
+    timer = setTimeout(poll, run.clock?.running ? 800 : 6000);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
     return () => {
       active = false;
       clearTimeout(timer);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
     };
-  }, [run.id, run.clock?.running, run.role, observing, busy]);
+  }, [run.id, run.clock?.running, run.role, busy]);
   async function playback(command, speed = run.clock?.speed || 1) {
     await act(async () => {
       const latest = await api(`/runs/${run.id}?role=${run.role}`);
@@ -1537,9 +1634,13 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
   }
   useEffect(() => {
     setAgents([]);
-    setReport(null);
     setReplay(null);
   }, [run.id, run.tick, run.version]);
+  useEffect(() => {
+    setReport(null);
+    setReportRunId(null);
+    setReportError("");
+  }, [run.id]);
   const m = run.metrics,
     complete = run.tick >= run.horizon;
   async function advance(ticks) {
@@ -1557,6 +1658,51 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
   async function finish() {
     await act(async () => {
       let next = await api(`/runs/${run.id}?role=${run.role}`);
+      if (next.clock?.running && next.tick < next.horizon) {
+        next = await api(`/runs/${next.id}/playback`, {
+          command: "pause",
+          speed: Number(next.clock.speed || 1),
+          version: next.version,
+          role: next.role,
+        });
+        setRun(next);
+      }
+      if (next.tick < next.horizon) {
+        const diagnosis = await api(`/runs/${next.id}/diagnosis`);
+        const actions = new Map(next.actions.map((action) => [action.id, action]));
+        const committed = next.decisions
+          .map((decision) => actions.get(decision.action_id))
+          .filter(Boolean);
+        const firstResponse = committed.findIndex(
+          (action) => action.effect !== "inspect",
+        );
+        const inspectedFirst =
+          firstResponse > 0 &&
+          committed
+            .slice(0, firstResponse)
+            .some((action) => action.effect === "inspect");
+        const repairedDiagnosedSystem = committed.some(
+          (action) =>
+            action.effect === "repair" &&
+            action.target === diagnosis.submitted?.root_node,
+        );
+        const missing = [];
+        if (!diagnosis.submitted) missing.push("a submitted diagnosis");
+        if (!inspectedFirst)
+          missing.push("a committed Inspect action before a response");
+        if (!repairedDiagnosedSystem)
+          missing.push("a Repair action for your diagnosed system");
+        if (
+          missing.length &&
+          !window.confirm(
+            `Practice score steps still missing: ${missing.join(", ")}.\n\nThese actions must happen after the incident starts and before the run ends to earn their points. Select Cancel to open Diagnose & act, or OK to complete anyway.`,
+          )
+        ) {
+          setRun(next);
+          setTab("Diagnosis");
+          return;
+        }
+      }
       while (next.tick < next.horizon) {
         next = await api(`/runs/${next.id}/advance`, {
           ticks: Math.min(30, next.horizon - next.tick),
@@ -1584,9 +1730,22 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
     });
   }
   useEffect(() => {
-    if (tab === "Debrief" && complete)
-      act(async () => setReport(await api(`/runs/${run.id}/report`)));
-  }, [tab, complete, run.id]);
+    if (tab !== "Debrief" || !complete) return;
+    let active = true;
+    setReportError("");
+    api(`/runs/${run.id}/report`)
+      .then((data) => {
+        if (!active) return;
+        setReport(data);
+        setReportRunId(run.id);
+      })
+      .catch((e) => {
+        if (active) setReportError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, complete, run.id, run.version, reportRetry]);
   const decisionDesk = (
     <section className="panel decision-panel">
       <div className="panel-heading">
@@ -1642,7 +1801,10 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
       })}
       <p className="tiny decision-note">
         Actions are applied at the current simulation time. Committed choices
-        remain in the audit trail.
+        remain in the audit trail. After the incident begins, commit Inspect
+        before any response, submit your diagnosis, then commit a Repair for the
+        failing system early enough to take effect. Opening Evidence alone does
+        not record an inspection.
       </p>
     </section>
   );
@@ -1652,6 +1814,17 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
         title={run.title}
         subtitle={`Seed ${run.seed} · ${run.population.toLocaleString()} ${run.unit} · A deterministic, synthetic world`}
       >
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={() =>
+            act(async () =>
+              setRun(await api(`/runs/${run.id}?role=${run.role}`)),
+            )
+          }
+        >
+          Refresh view
+        </button>
         <button
           className="secondary"
           disabled={busy || observing}
@@ -1683,7 +1856,15 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
       <LearningJourney
         run={run}
         observing={observing}
-        onView={(view) => setTab(view === "Learning" ? "Debrief" : view)}
+        onView={(view) => {
+          if (view === "Learning") {
+            if (complete) setTab("Debrief");
+            document.querySelector(".learning-check")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          } else setTab(view);
+        }}
         onStart={() => playback("play")}
         busy={busy}
       />
@@ -1691,7 +1872,12 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
         run={run}
         observing={observing}
         expanded={tab === "Debrief" || run.tick === 0}
-        onOpen={() => setTab("Debrief")}
+        onOpen={() =>
+          document.querySelector(".learning-check")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          })
+        }
         onSaved={async () =>
           setRun(await api(`/runs/${run.id}?role=${run.role}`))
         }
@@ -1810,6 +1996,7 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
           <button
             className={tab === t ? "active" : ""}
             key={t}
+            disabled={t === "Debrief" && !complete}
             onClick={() => setTab(t)}
           >
             {
@@ -2093,7 +2280,7 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
         </div>
       )}
       {tab === "Debrief" &&
-        (report ? (
+        (report && reportRunId === run.id ? (
           <>
             <div className="debrief">
               <div className="debrief-icon">
@@ -2145,14 +2332,22 @@ function World({ run, setRun, act, busy, toast, user, onOpenRun, onOpenLab }) {
               {report.note}
             </div>
           </>
+        ) : reportError ? (
+          <section className="panel padded" role="alert">
+            <p>Could not load the debrief: {reportError}</p>
+            <button className="secondary" onClick={() => setReportRetry((n) => n + 1)}>
+              Try again
+            </button>
+          </section>
         ) : (
           <Empty
             title={
               complete ? "Preparing debrief…" : "The story is still unfolding"
             }
           >
-            Complete the run to reveal the incident source and compare your
-            decisions with an identical no-action baseline.
+            {complete
+              ? "Loading the completed run and no-action comparison…"
+              : "Complete the run to reveal the incident source and compare your decisions with an identical no-action baseline."}
           </Empty>
         ))}
     </>

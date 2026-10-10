@@ -21,7 +21,7 @@ export function LearningJourney({ run, observing, onView, onStart, busy }) {
       completed
         ? "Run completed"
         : started
-          ? "In progress"
+          ? "Inspect, diagnose and respond"
           : "Investigate, diagnose and respond",
       "World map",
     ],

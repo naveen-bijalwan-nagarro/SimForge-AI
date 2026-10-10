@@ -1,18 +1,21 @@
 CodexForge
+
 SimForge AI technical submission reference
 
 Primary code artifact: SimForge-AI-code.zip in this folder
-SHA-256: 2a178c8f488fb37b33ec740e26bc4258f1d1564f22e1da2674893b56f491b422
-Base commit: f8b045378afe9de2a3aa29d346157e0f8957b80c
-The ZIP includes the Scenario Lab flow with direct Admin document upload, the
-masked startup banner and the revised synthetic FactoryPulse source files.
-CODE_SNAPSHOT.txt inside the archive lists uncommitted source changes.
+SHA-256: 232b00e2681b9ccb43075a76c220d34c9f14c092e632f04e0cf6ada1e5f61010
+Base commit: 209c0edfa95ff0cbe12dfe23599091e482350c70
+
+The ZIP captures the current repository source and the synthetic CloudRescue
+sample2 packet. CODE_SNAPSHOT.txt inside the archive lists the included
+working-tree source changes and new files.
 
 The code ZIP contains the FastAPI backend, React frontend, scenario packs,
-README, setup.cmd, start.cmd and the synthetic FactoryPulse input packet.
-It excludes .git, .venv, node_modules, frontend/dist, caches, local runtime
-data, secrets and submission materials. Unzip it and, in Windows PowerShell,
-run .\setup.cmd followed by .\start.cmd as described in README.md. The startup
+README, setup.cmd, start.cmd, synthetic FactoryPulse sample1 inputs, and the
+CloudRescue sample2 prompt, incident brief and learner route. It excludes
+.git, .venv, node_modules, frontend/dist, caches, local runtime data,
+secrets and submission materials. Unzip it and, in Windows PowerShell, run
+.\setup.cmd followed by .\start.cmd as described in README.md. The startup
 script serves the built UI and API together at http://127.0.0.1:8000 by
 default. Local dependencies and generated UI assets are recreated on setup.
 

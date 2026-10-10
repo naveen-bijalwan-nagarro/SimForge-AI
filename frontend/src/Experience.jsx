@@ -56,7 +56,10 @@ export function RoleGuide({ role }) {
 export function Notifications({ onOpen }) {
   const [items, setItems] = useState([]),
     [open, setOpen] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loaded, setLoaded] = useState(false),
+    [retry, setRetry] = useState(0),
+    [openingId, setOpeningId] = useState(null);
   useEffect(() => {
     let alive = true,
       timer;
@@ -66,6 +69,7 @@ export function Notifications({ onOpen }) {
         if (alive) {
           setItems(rows);
           setError("");
+          setLoaded(true);
         }
       } catch (e) {
         if (alive) setError(e.message);
@@ -77,7 +81,7 @@ export function Notifications({ onOpen }) {
       alive = false;
       clearTimeout(timer);
     };
-  }, []);
+  }, [retry]);
   const unread = items.filter((x) => !x.seen).length;
   return (
     <div className="notification-host">
@@ -96,14 +100,20 @@ export function Notifications({ onOpen }) {
           <p className="tiny">
             New scenarios and trainer assignments appear here automatically.
           </p>
+          <button className="secondary" onClick={() => setRetry((n) => n + 1)}>
+            Refresh notifications
+          </button>
           {error && <p role="alert">{error}</p>}
-          {!items.length && <p>No notifications yet.</p>}
+          {!loaded && !error && <p role="status">Checking notifications…</p>}
+          {loaded && !items.length && <p>No notifications yet.</p>}
           {items.map((item) => (
             <button
               className={"notification-item " + (!item.seen ? "unread" : "")}
               key={item.id}
+              disabled={openingId !== null}
               onClick={async () => {
                 try {
+                  setOpeningId(item.id);
                   await onOpen(item.scenario_key);
                   await api(`/notifications/${item.id}/read`, {});
                   setItems((old) =>
@@ -112,10 +122,12 @@ export function Notifications({ onOpen }) {
                   setOpen(false);
                 } catch (e) {
                   setError(e.message);
+                } finally {
+                  setOpeningId(null);
                 }
               }}
             >
-              <strong>{item.title}</strong>
+              <strong>{openingId === item.id ? "Opening mission…" : item.title}</strong>
               <p>{item.message}</p>
               <small>{new Date(item.created * 1000).toLocaleString()}</small>
             </button>
@@ -166,8 +178,22 @@ export function DataExplorer({ prepared, run }) {
   const [table, setTable] = useState("work_items"),
     [offset, setOffset] = useState(0),
     [result, setResult] = useState(null),
-    [error, setError] = useState(""),
+    [error, setError] = useState(null),
+    [retry, setRetry] = useState(0),
     [workId, setWorkId] = useState("");
+  const queryKey = JSON.stringify([
+    prepared.id,
+    run?.id,
+    run?.tick,
+    run?.version,
+    run?.role,
+    table,
+    offset,
+    workId,
+    retry,
+  ]);
+  const currentResult = result?.key === queryKey ? result.data : null;
+  const currentError = error?.key === queryKey ? error.message : "";
   const tables = {
     ...prepared.tables,
     ...(run
@@ -188,6 +214,8 @@ export function DataExplorer({ prepared, run }) {
   };
   useEffect(() => {
     let active = true;
+    setResult(null);
+    setError(null);
     const path = run
       ? `/runs/${run.id}/data/${table}`
       : `/preparations/${prepared.id}/tables/${table}`;
@@ -196,17 +224,17 @@ export function DataExplorer({ prepared, run }) {
     )
       .then((r) => {
         if (active) {
-          setResult(r);
-          setError("");
+          setResult({ key: queryKey, data: r });
+          setError(null);
         }
       })
       .catch((e) => {
-        if (active) setError(e.message);
+        if (active) setError({ key: queryKey, message: e.message });
       });
     return () => {
       active = false;
     };
-  }, [prepared.id, run?.id, run?.tick, table, offset, workId]);
+  }, [queryKey]);
   return (
     <section className="data-explorer">
       <div className="dataset-selector">
@@ -255,18 +283,21 @@ export function DataExplorer({ prepared, run }) {
         </a>
       </div>
       <p className="muted">{tables[table]?.description}</p>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
+      {currentError && (
+        <div className="error" role="alert">
+          <p>Could not load records: {currentError}</p>
+          <button className="secondary" onClick={() => setRetry((n) => n + 1)}>
+            Try again
+          </button>
+        </div>
       )}
-      {result ? (
+      {currentResult ? (
         <>
-          <Grid rows={result.rows} />
+          <Grid rows={currentResult.rows} />
           <div className="dataset-pagination">
             <span>
-              {result.total.toLocaleString()} records
-              {run && ` · observed at ${exerciseTime(result.tick)}`}
+              {currentResult.total.toLocaleString()} records
+              {run && ` · observed at ${exerciseTime(currentResult.tick)}`}
             </span>
             <button
               className="secondary"
@@ -277,16 +308,16 @@ export function DataExplorer({ prepared, run }) {
             </button>
             <button
               className="secondary"
-              disabled={offset + 30 >= result.total}
+              disabled={offset + 30 >= currentResult.total}
               onClick={() => setOffset(offset + 30)}
             >
               Next rows
             </button>
           </div>
         </>
-      ) : (
-        <p>Loading records…</p>
-      )}
+      ) : !currentError ? (
+        <p role="status">Loading records…</p>
+      ) : null}
     </section>
   );
 }
@@ -700,7 +731,17 @@ export function LiveOperations({ run }) {
         </span>
       </div>
       {view === "application" ? (
-        <ServiceConsole run={run} />
+        run.tick === 0 ? (
+          <div className="panel padded" role="status">
+            <h4>Operations are ready</h4>
+            <p>
+              Your linked records are prepared. Start playback above to open
+              the live work queue as the first records arrive.
+            </p>
+          </div>
+        ) : (
+          <ServiceConsole run={run} />
+        )
       ) : (
         <div className="live-scene" aria-label="Live workflow visualization">
           <svg
@@ -1380,18 +1421,68 @@ export function TrainingDesk({ user, scenarios, onOpen, onRun }) {
       "Trace one work item through the linked datasets. Identify the first disrupted system, explain the downstream impact and justify your response before completing the debrief.",
     ),
     [error, setError] = useState(""),
+    [loaded, setLoaded] = useState(false),
+    [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const manage = user.role === "admin";
-  async function refresh() {
-    const [a, r] = await Promise.all([api("/assignments"), api("/runs")]);
-    setAssignments(a);
-    setRuns(r);
-    if (manage) setLearners(await api("/learners"));
+  const requestSequence = useRef(0);
+  const loadedRef = useRef(false);
+  async function refresh({ background = false } = {}) {
+    const request = ++requestSequence.current;
+    if (!background) setLoading(true);
+    try {
+      const [a, r, l] = await Promise.all([
+        api("/assignments"),
+        api("/runs"),
+        manage ? api("/learners") : Promise.resolve([]),
+      ]);
+      if (request !== requestSequence.current) return;
+      setAssignments(a);
+      setRuns(r);
+      setLearners(l);
+      loadedRef.current = true;
+      setLoaded(true);
+      setLoading(false);
+      setError("");
+    } catch (e) {
+      if (request !== requestSequence.current) return;
+      setLoading(false);
+      if (!background || !loadedRef.current) setError(e.message);
+    }
   }
   useEffect(() => {
-    refresh().catch((e) => setError(e.message));
-  }, []);
+    refresh();
+    let active = true;
+    let timer;
+    async function poll() {
+      if (!active) return;
+      if (document.visibilityState !== "hidden")
+        await refresh({ background: true });
+      if (active) timer = setTimeout(poll, 6000);
+    }
+    const resume = () => {
+      if (document.visibilityState !== "hidden")
+        refresh({ background: true });
+    };
+    timer = setTimeout(poll, 6000);
+    window.addEventListener("focus", resume);
+    document.addEventListener("visibilitychange", resume);
+    return () => {
+      active = false;
+      requestSequence.current += 1;
+      clearTimeout(timer);
+      window.removeEventListener("focus", resume);
+      document.removeEventListener("visibilitychange", resume);
+    };
+  }, [user.id, user.role]);
+  useEffect(() => {
+    setKey((current) =>
+      scenarios.some((scenario) => scenario.key === current)
+        ? current
+        : scenarios[0]?.key || "",
+    );
+  }, [scenarios]);
   return (
     <>
       <div className="page-heading">
@@ -1405,7 +1496,8 @@ export function TrainingDesk({ user, scenarios, onOpen, onRun }) {
         </div>
         <button
           className="secondary"
-          onClick={() => refresh().catch((e) => setError(e.message))}
+          disabled={loading}
+          onClick={() => refresh()}
         >
           Refresh progress
         </button>
@@ -1420,6 +1512,16 @@ export function TrainingDesk({ user, scenarios, onOpen, onRun }) {
           {message}
         </p>
       )}
+      {!loaded && (
+        <section className="panel padded" aria-busy={loading}>
+          <p role="status">
+            {loading
+              ? "Loading assignments and exercise progress…"
+              : "Progress is unavailable. Use Refresh progress to try again."}
+          </p>
+        </section>
+      )}
+      {loaded && <>
       {manage && (
         <section className="panel padded">
           <h3>Assign an exercise</h3>
@@ -1521,6 +1623,7 @@ export function TrainingDesk({ user, scenarios, onOpen, onRun }) {
           ))}
         {!runs.length && <p>No runs started yet.</p>}
       </section>
+      </>}
     </>
   );
 }

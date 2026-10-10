@@ -21,16 +21,27 @@ export function LearningCheck({
   expanded = false,
   onOpen,
 }) {
-  const [state, setState] = useState(null),
+  const [fetchedState, setState] = useState(null),
     [choices, setChoices] = useState({});
   const [questionIndex, setQuestionIndex] = useState(0);
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
+    [fetchError, setError] = useState(""),
     [retry, setRetry] = useState(0);
+  const [loadedKey, setLoadedKey] = useState(null);
   const id = run?.id || resourceId;
   const completed = completedOverride ?? run?.tick >= run?.horizon;
   const path = resourcePath || `/runs/${id}`;
   const isWorld = kind === "world";
+  const loadKey = JSON.stringify([
+    path,
+    completed,
+    activityKey,
+    run?.tick === 0,
+    run?.clock?.running,
+    retry,
+  ]);
+  const state = loadedKey === loadKey ? fetchedState : null;
+  const error = loadedKey === loadKey ? fetchError : "";
   useEffect(() => {
     setState(null);
     setChoices({});
@@ -39,6 +50,9 @@ export function LearningCheck({
   }, [id, completed]);
   useEffect(() => {
     let active = true;
+    setLoadedKey(loadKey);
+    setState(null);
+    setError("");
     api(`${path}/learning-check`)
       .then((data) => {
         if (active) {
@@ -92,18 +106,23 @@ export function LearningCheck({
       <div className="panel-heading">
         <h2>Knowledge & learning</h2>
         <span className="badge">
-          {state?.after
-            ? "Objective practice results"
-            : completed
-              ? "Post-check due"
-              : "Quick knowledge check"}
+          {error
+            ? "Check unavailable"
+            : !state
+              ? "Loading learning check"
+              : state.after
+                ? "Objective practice results"
+                : completed
+                  ? "Post-check due"
+                  : "Quick knowledge check"}
         </span>
       </div>
-      <div
-        className="learning-summary"
-        aria-label="Learning scores"
-        aria-live="polite"
-      >
+      {state && (
+        <div
+          className="learning-summary"
+          aria-label="Learning scores"
+          aria-live="polite"
+        >
         <div>
           <small>Starting knowledge</small>
           <strong>
@@ -134,7 +153,8 @@ export function LearningCheck({
           </strong>
           <small>Before → after check</small>
         </div>
-      </div>
+        </div>
+      )}
       {error && (
         <p className="error-banner" role="alert">
           {error}{" "}

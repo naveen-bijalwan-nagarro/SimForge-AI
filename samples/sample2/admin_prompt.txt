@@ -1,0 +1,5 @@
+Create "CloudRescue - Checkout Deployment Incident" for a site reliability engineer. Synthetic data; unit=requests; environment_style=service_app. Five capacity-5 nodes in order: deployment, api_requests, database, checkout, availability. Edges: deployment->api_requests->checkout->availability; database->checkout. incident_node=deployment.
+
+Author-only cause: Release 2.4 set the API connection pool to 2 instead of 20, queuing requests. Hide it until debrief.
+
+Learner mission: compare release, API, database and customer evidence, then diagnose and respond. Success: inspect first and improve completed requests against the same-workload no-action baseline within budget. Use the uploaded brief; return one structured draft for Admin review.

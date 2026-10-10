@@ -29,6 +29,7 @@ export function RoleHome({
   scenarios,
   onNavigate,
   onScenario,
+  onRefresh,
 }) {
   const role = roles[user.role];
   const [facts, setFacts] = useState(null);
@@ -36,10 +37,12 @@ export function RoleHome({
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let active = true;
+    let timer;
     const paths =
       user.role === "admin" ? ["/scenario-drafts"] : ["/assignments"];
-    Promise.all(paths.map((path) => api(path)))
-      .then((data) => {
+    async function refresh() {
+      try {
+        const data = await Promise.all(paths.map((path) => api(path)));
         if (!active) return;
         setFacts(
           user.role === "admin"
@@ -47,12 +50,15 @@ export function RoleHome({
             : { assignments: data[0] },
         );
         setError("");
-      })
-      .catch((e) => {
+      } catch (e) {
         if (active) setError(e.message);
-      });
+      }
+      if (active) timer = setTimeout(refresh, 6000);
+    }
+    refresh();
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [user.id, user.role, retry]);
   const supplier =
@@ -65,6 +71,21 @@ export function RoleHome({
   const ready = facts?.drafts?.filter(
     (d) => d.status !== "published" && d.checks.every((c) => c.passed),
   ).length;
+  if (!facts)
+    return (
+      <section className="panel padded" aria-busy={!error}>
+        {error ? (
+          <p role="alert">
+            Could not load your workspace: {error}{" "}
+            <button className="secondary" onClick={() => setRetry((x) => x + 1)}>
+              Try again
+            </button>
+          </p>
+        ) : (
+          <p role="status">Loading your learning workspace…</p>
+        )}
+      </section>
+    );
   return (
     <>
       <section className="mission-home" aria-label="Your next step">
@@ -88,6 +109,15 @@ export function RoleHome({
             {user.role === "admin"
               ? "Browse scenario library"
               : "View my training"}
+          </button>
+          <button
+            className="secondary"
+            onClick={() => {
+              setRetry((x) => x + 1);
+              onRefresh();
+            }}
+          >
+            Refresh workspace
           </button>
         </div>
       </section>

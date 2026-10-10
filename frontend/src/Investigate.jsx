@@ -63,21 +63,39 @@ function Panel({ title, children, actions, subtitle }) {
 }
 
 function useLoad(fn, deps) {
-  const [state, setState] = useState({ data: null, error: "", loading: true });
+  const requestKey = JSON.stringify(deps);
+  const [state, setState] = useState({
+    key: null,
+    data: null,
+    error: "",
+    loading: true,
+  });
   useEffect(() => {
     let alive = true;
-    setState((s) => ({ ...s, loading: true }));
+    setState({ key: requestKey, data: null, error: "", loading: true });
     fn()
-      .then((data) => alive && setState({ data, error: "", loading: false }))
+      .then(
+        (data) =>
+          alive &&
+          setState({ key: requestKey, data, error: "", loading: false }),
+      )
       .catch(
         (e) =>
-          alive && setState({ data: null, error: e.message, loading: false }),
+          alive &&
+          setState({
+            key: requestKey,
+            data: null,
+            error: e.message,
+            loading: false,
+          }),
       );
     return () => {
       alive = false;
     };
   }, deps);
-  return state;
+  return state.key === requestKey
+    ? state
+    : { data: null, error: "", loading: true };
 }
 
 /* ------------------------------------------------------------------ live 3D */
@@ -417,6 +435,10 @@ export function EvidenceLocker({ run }) {
     run.role || perspectives[0]?.id || "operations",
   );
   const [modality, setModality] = useState("all");
+  useEffect(() => {
+    setRole(run.role || run.perspectives?.[0]?.id || "operations");
+    setModality("all");
+  }, [run.id, run.role]);
   const { data, error, loading } = useLoad(
     () => api(`/runs/${run.id}/evidence?role=${role}`),
     [run.id, run.tick, role],
@@ -460,7 +482,7 @@ export function EvidenceLocker({ run }) {
       </div>
       {error && <p className="error">{error}</p>}
       {loading && !data && <p className="muted">Collecting evidence…</p>}
-      {!loading && !items.length && (
+      {!error && !loading && !items.length && (
         <p className="muted">
           No evidence for this perspective yet. Advance the simulation or switch
           perspective.
@@ -595,9 +617,10 @@ export function CommanderPanel({ run, decide, busy, complete }) {
 
 /* ------------------------------------------------------------------ diagnosis & scorecard */
 export function DiagnosisPanel({ run, setRun, busy, observing }) {
-  const { data, error } = useLoad(
+  const [refresh, setRefresh] = useState(0);
+  const { data, error, loading } = useLoad(
     () => api(`/runs/${run.id}/diagnosis`),
-    [run.id, run.version],
+    [run.id, run.tick >= run.horizon, refresh],
   );
   const [root, setRoot] = useState("");
   const [cause, setCause] = useState("");
@@ -608,8 +631,11 @@ export function DiagnosisPanel({ run, setRun, busy, observing }) {
       title="Root-cause diagnosis"
       subtitle="Commit your diagnosis before the debrief. It is scored for accuracy and timing."
     >
-      {error && <p className="error">{error}</p>}
-      {submitted ? (
+      {error ? (
+        <p className="error">{error}</p>
+      ) : loading ? (
+        <p className="muted" role="status">Loading diagnosis…</p>
+      ) : submitted ? (
         <p className="callout">
           Submitted at minute {submitted.tick}:{" "}
           <strong>
@@ -621,7 +647,11 @@ export function DiagnosisPanel({ run, setRun, busy, observing }) {
           — {submitted.cause}
         </p>
       ) : run.tick >= run.horizon ? (
-        <p className="muted">No diagnosis was recorded before debrief.</p>
+        <p className="muted">
+          No diagnosis was recorded before debrief. In a new run, select the
+          first failing system and explanation here, then click Submit diagnosis
+          before Complete run.
+        </p>
       ) : data ? (
         <form
           className="diagnosis-form"
@@ -629,13 +659,13 @@ export function DiagnosisPanel({ run, setRun, busy, observing }) {
             e.preventDefault();
             try {
               const latest = await api(`/runs/${run.id}?role=${run.role}`);
-              setRun(
-                await api(`/runs/${run.id}/diagnosis`, {
-                  root_node: root,
-                  cause,
-                  version: latest.version,
-                }),
-              );
+              const updatedRun = await api(`/runs/${run.id}/diagnosis`, {
+                root_node: root,
+                cause,
+                version: latest.version,
+              });
+              setRun(updatedRun);
+              setRefresh((value) => value + 1);
               setMessage("Diagnosis recorded.");
             } catch (err) {
               setMessage(err.message);
