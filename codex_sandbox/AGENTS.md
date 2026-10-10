@@ -1,7 +1,7 @@
 # SimForge Codex sandbox — instructions for Codex
 
 You are helping a SimForge administrator create a **new training use case** (a simulation
-"world"). You work only inside this folder. SimForge is a CPU-only training platform: worlds are
+"world"). You work only inside this folder. SimForge is a CPU-first training platform: worlds are
 **data (YAML scenario packs)**, never code. Learners investigate a hidden incident, coordinate
 specialist agents and take budgeted decisions while a SimPy engine plays out consequences.
 
@@ -36,7 +36,8 @@ If MCP is unavailable, use the CLI from the project root:
 4. Run `validate_scenario` and `run_scenario_tests`; fix every failure; repeat.
 5. Run `generate_simulator` and check the story makes sense (the incident cascades; the repair helps).
 6. Call `submit_for_approval` with the final YAML and a one-line note. Tell the user the draft id and
-   that an **administrator must publish it in Scenario studio**, which notifies learners.
+   that an **administrator must review and publish it** before learners are notified; the terminal
+   sandbox is internal developer tooling, while the supported UI authoring page is Scenario Lab.
 
 ## Rules
 

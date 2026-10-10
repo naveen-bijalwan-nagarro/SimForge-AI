@@ -1,9 +1,15 @@
 # Verification record
 
+## Current documentation and sample2 handoff — 10 October 2026
+
+- The CloudRescue sample2 packet uses one synthetic DOCX reference with invented identifiers for a local text-screening demonstration, plus a short administrator prompt. The learner rehearsal requires committed investigation, diagnosis and repair events before debrief; score components are calculated from those events and the post-check, not filled by the prompt.
+- In the preceding sample2 and learner-loading work, a lower-memory React production build completed and the submission source ZIP passed an integrity and workspace-content check. Those checks do not verify a live Codex draft or a browser end-to-end run of the latest sample2 changes. Generation time, model output and the full recorded journey still need rehearsal on the running app.
+- The current working branch is `main`. Earlier sections below are dated records; their branch names, test counts and screenshots describe the edition verified at that time.
+
 ## Objective learner journey and population removal — 9 October 2026
 
 - Reviewed `SimForge_Objective_Learner_Update.zip` and the attached notes as reference material. The installer targets an older checkout and was not executed. Integrated the objective-only design with the current privacy screening, publication controls and run ownership checks.
-- Removed the dedicated Agent population API/UI, Mesa model and deck.gl rendering/dependencies. Generated work-item volume, existing scenarios and user SQLite data remain intact. Removed obsolete population building-block suggestions from scenario metadata.
+- Removed the dedicated Agent population API/UI and deck.gl rendering/dependencies from the active experience. The legacy `backend/population.py` module remains in source, but Mesa is not a required dependency. Generated work-item volume, existing scenarios and user SQLite data remain intact. Removed obsolete population building-block suggestions from scenario metadata.
 - Learners see mission/success criteria, four journey stages, four persistent knowledge/practice cards and one MCQ at a time. Primary views are Operations, Evidence, Diagnose & act and Learning review; optional visual/data views are expandable.
 - The server computes practice points: post-check 50, correct timely diagnosis 25, incident-time investigation before response 15 and root-targeted repair with time to take effect 10. No free-text answer or manual grading endpoint remains. Historical review records are preserved but do not influence the objective score. Missing baseline means unavailable gain; zero and negative changes are retained. Post-check answers cannot supply a score or explanation; answer keys remain hidden until post submission.
 - **324 backend tests passed** in the full suite (235.53 seconds). The 42 existing `datetime.utcnow()` generator deprecation warnings remain. **20 distinct browser checks passed** across sample publication/notification, two-role observation, objective scoring, zero/missing gain, mobile layout, optional 3D/evidence/council views, ML/dataset navigation, gaming/replay, training/SQLite, authoring configuration and durable/slow/failing dataset navigation. An older API-key test was corrected to supply a brief before expecting generation to be enabled.
@@ -45,7 +51,7 @@ Earlier entries below are historical verification records and may describe remov
 - Before cleanup, a consistent SQLite backup was created at `data/secrets/backups/simforge-before-fresh-demo-20261009-124722.sqlite3` (16,986,112 bytes), excluded from Git and web serving. Its Windows ACL was verified to permit only the current account and SYSTEM. Protect this backup; it contains application data. The separate API secret file was not read, copied into Git or modified.
 - An initial full run had two pre-existing export failures due to the Windows sandbox temporary-directory ACL; rerunning with a workspace-local runtime temp directory passed. Early browser runs exposed an ambiguous accessibility label and test races (login/duplicate previews); the label and test synchronization were corrected before the successful run.
 
-See [document uploads, dictation and recovery](../README.md#multiple-scenario-documents-and-voice-dictation). The current branch remains `hackathon/simforge-scenario-lab`.
+See [document uploads, dictation and recovery](../README.md#multiple-scenario-documents-and-voice-dictation). This work was validated on `hackathon/simforge-scenario-lab`; the current branch is `main`.
 
 ## Codex-primary / private API-backup follow-up — 9 October 2026
 
@@ -61,7 +67,7 @@ See [persistent backup setup](../README.md#persistent-api-backup-configuration).
 
 ## Current edition — 9 October 2026
 
-Branch: `hackathon/simforge-scenario-lab`. Exactly two roles (`admin`, presented as Admin / Trainer, and `learner`), one Scenario Lab page, and no separate SOP/advanced-builder/sandbox navigation. The requested `hackathon/simforge-role-first` branch had no unique commits; its ref was removed after switching to the new branch. Main's commit remains unchanged.
+Branch at that validation point: `hackathon/simforge-scenario-lab`. Exactly two roles (`admin`, presented as Admin / Trainer, and `learner`), one Scenario Lab page, and no separate SOP/advanced-builder/sandbox navigation. The requested `hackathon/simforge-role-first` branch had no unique commits; its ref was removed after switching to the new branch. Main's commit had not yet changed at that point; the current branch is `main`.
 
 Verified on Windows with the repository virtual environment, npm/Vite and installed Microsoft Edge through Playwright, using isolated SQLite data directories (not the normal application data):
 

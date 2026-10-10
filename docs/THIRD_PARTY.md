@@ -52,5 +52,5 @@ The original SafeSim catalogue and generator were copied into `backend/builtin/`
 
 - All world populations, evidence, images, datasets, ML-lab data and SOP examples are generated locally and synthetic.
 - No UCI, NASA, healthcare, banking, game-player, genomic, clinical or security dataset was downloaded.
-- The demo SOP contains fictitious personal data solely to demonstrate sanitization.
+- The FactoryPulse and CloudRescue demo references contain fictional identifiers solely to demonstrate local text screening; they are not customer records.
 - Bootstrap/independent CSV synthesis in the Generator lab can retain source values; it is not certified anonymization. Use synthetic or approved non-sensitive source rows.
